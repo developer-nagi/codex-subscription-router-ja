@@ -11,6 +11,10 @@ Codex Subscription Router は公式 ChatGPT デスクトップアプリのロー
 公式アプリはビルド入力として読み取るだけで、決して変更しない。このリポジトリにはソースコードと
 ビルドツールのみが含まれ、OpenAI のバイナリや配布可能なアプリは含まれない。
 
+本リポジトリは [b-nnett/codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
+の fork である。オリジナルは macOS 版として設計・実装されており、本 fork はそれを Windows 版へ
+移植し、日本語化したものである。設計の中核は上流の成果であり、詳しくは [謝辞](#謝辞) を参照。
+
 > [!WARNING]
 > 本プロジェクトは非公式で、公式ビルドのバージョンに強く依存する。OpenAI とは無関係であり、
 > サポートも受けられない。利用前にソースを確認し、接続する各サブスクリプションに適用される
@@ -225,7 +229,29 @@ npm run upstream:check -- --fetch
 変更を送る前に [CONTRIBUTING.md](CONTRIBUTING.md) を読むこと。リリースは
 [RELEASING.md](docs/RELEASING.md) のソース限定手順に従い、対象コミットでの実機確認を必須とする。
 
+## 謝辞
+
+本プロジェクトは Bennett Blackham 氏による
+[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
+を出発点としている。次の設計と実装はいずれも上流の成果であり、本 fork はそれを受け継いでいる。
+
+- 1 本の app-server 接続をアカウントごとの Codex 子プロセスへ分配する多重化アーキテクチャ
+- 週次利用枠の失効までの猶予とリセットクレジットで新規チャットを割り当てる設計
+- スレッドを 1 つのサブスクリプションへ固定し、枯渇時にだけ引き継ぐ方針
+- アカウントごとに Codex ホームを隔離し、管理対象の構成だけを共有する仕組み
+- 期待するアンカーが 1 つでも欠けたら停止する fail-closed のパッチ方針
+- ループバック限定・トークン認証の制御 API と、その周辺のセキュリティ設計
+
+本 fork が加えたのは、プラットフォームを Windows へ置き換えたことと日本語化であり、
+上記の考え方そのものは変更していない。優れた土台を公開してくださったことに感謝する。
+
+上流は macOS 版として開発が続いている。macOS を使う場合は本 fork ではなく
+[オリジナル](https://github.com/b-nnett/codex-subscription-router) を利用すること。
+本 fork の不具合や要望を上流へ持ち込まないよう注意する。
+
 ## ライセンス
 
-本プロジェクトのソースは [MIT License](LICENSE) で提供する。ChatGPT、Codex、および公式の
-Windows アプリは OpenAI の製品であり、本ライセンスの対象外である。
+本プロジェクトのソースは [MIT License](LICENSE) で提供する。著作権表示は
+オリジナルの著作者である Bennett Blackham 氏のものを保持している。
+
+ChatGPT、Codex、および公式の Windows アプリは OpenAI の製品であり、本ライセンスの対象外である。

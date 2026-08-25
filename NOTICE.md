@@ -1,5 +1,16 @@
 # 告知
 
+## 派生元
+
+本リポジトリは Bennett Blackham 氏による
+[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router) の fork である。
+オリジナルは MIT License で提供されており、`LICENSE` の著作権表示はオリジナルのものを保持している。
+本 fork はプラットフォームを macOS から Windows へ置き換え、日本語化したものであり、
+多重化アーキテクチャ、利用枠を考慮したルーティング、アカウント隔離、fail-closed のパッチ方針は
+上流の設計を受け継いでいる。
+
+## 公式アプリの扱い
+
 本リポジトリにはパッチ処理と多重化のオリジナルのソースのみを含む。公式 ChatGPT アプリケーション、
 その ASAR アーカイブ、埋め込みネイティブサービス、その他の OpenAI バイナリを含まず、
 再配布に用いてはならない。
