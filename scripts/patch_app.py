@@ -420,6 +420,55 @@ def patch_renderer(extracted: Path, token: str) -> None:
             "ネイティブの利用枠切れアラート",
         )
     bundle_path.write_text(bundle, encoding="utf-8")
+    patch_profile_page(assets)
+
+
+def patch_profile_page(assets: Path) -> None:
+    """プロフィール設定が合算であることを示す。
+
+    統計は全サブスクリプションの合算だが、ヘッダーは単一アカウントの識別情報を
+    出すため合算だと分からない。接続が 2 件以上のときだけ差し替える。
+    """
+    bundle_path = single_asset(assets, "profile-*.js", "プロフィール設定バンドル")
+    bundle = bundle_path.read_text(encoding="utf-8")
+
+    replacements = (
+        (
+            'avatar:(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`label`,'
+            '{"aria-disabled":I.isPending,',
+            "avatar:globalThis.CodexMuxProfileAvatarStack?.()??"
+            '(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`label`,'
+            '{"aria-disabled":I.isPending,',
+            "プロフィールのアバター",
+        ),
+        (
+            "displayName:et??(0,$.jsx)(J,{id:`profile.nameFallback`",
+            "displayName:globalThis.CodexMuxProfileDisplayName?.()??et??"
+            "(0,$.jsx)(J,{id:`profile.nameFallback`",
+            "プロフィールの表示名",
+        ),
+        (
+            "username:Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
+            "username:globalThis.CodexMuxProfileUsername?.()??"
+            "(Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
+            "プロフィールのユーザー名",
+        ),
+    )
+    for anchor, replacement, description in replacements:
+        bundle = replace_once(bundle, anchor, replacement, description)
+
+    # username は三項演算子を包み直したため、対応する括弧を閉じる。
+    username_tail = (
+        "description:`Profile username shown with an at-sign prefix`,"
+        "values:{username:Qe}})"
+    )
+    bundle = replace_once(
+        bundle,
+        username_tail,
+        username_tail + ")",
+        "プロフィールのユーザー名の閉じ括弧",
+    )
+    bundle_path.write_text(bundle, encoding="utf-8")
 
 
 def patch_desktop_profile(extracted: Path) -> None:

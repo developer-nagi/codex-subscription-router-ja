@@ -625,12 +625,9 @@ function CodexMuxOverlappingAvatars({ accounts, size = "size-20" }) {
   });
 }
 
-function CodexMuxProfileAvatarStack({ onSelect }) {
+function CodexMuxUseConnectedAccounts() {
   const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState(
     globalThis.__codexMuxCombinedProfileAccounts || [],
-  );
-  const [selectedId, setSelectedId] = __CODEX_MUX_REACT__.useState(
-    globalThis.__codexMuxSelectedProfileAccountId || null,
   );
   __CODEX_MUX_REACT__.useEffect(() => {
     let live = true;
@@ -648,58 +645,50 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
       live = false;
     };
   }, []);
-  __CODEX_MUX_REACT__.useEffect(() => {
-    globalThis.__codexMuxSelectedProfileAccountId = null;
-    setSelectedId(null);
-    onSelect?.();
-    return () => {
-      globalThis.__codexMuxSelectedProfileAccountId = null;
-    };
-  }, []);
-  if (accounts.length === 0) return null;
-  const visibleAccounts = selectedId
-    ? accounts.filter((account) => account.id === selectedId)
-    : accounts;
+  return accounts;
+}
+
+// プロフィール設定の統計は全サブスクリプションの合算値である。
+// 単一アカウントの識別情報のままでは合算だと分からないため、接続中の
+// アカウントを重ねて示す。接続が 1 件だけならネイティブ表示に任せる。
+function CodexMuxProfileAvatarStack() {
+  const accounts = CodexMuxUseConnectedAccounts();
+  if (accounts.length < 2) return null;
   return (0, __CODEX_MUX_JSX__.jsx)("div", {
-    className: "mb-4",
-    "aria-label": selectedId
-      ? "選択中のサブスクリプションのプロフィール"
-      : `接続中のサブスクリプション: ${accounts.length}件`,
-    children: (0, __CODEX_MUX_JSX__.jsx)("div", {
-      className: "flex items-center justify-center",
-      children: visibleAccounts.map((account, index) =>
-        (0, __CODEX_MUX_JSX__.jsx)(
-          "button",
-          {
-            type: "button",
-            className: `${index === 0 ? "" : "-ml-5"} rounded-full border-4 border-token-bg-primary transition-transform hover:z-10 hover:scale-105 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-token-focus-border`,
-            style: {
-              marginLeft: index === 0 ? 0 : -20,
-              zIndex: index,
-            },
-            "aria-label": selectedId
-              ? `合算プロフィール統計を表示`
-              : `${account.label} のプロフィール統計を表示`,
-            title: account.planLabel
-              ? `${account.label} · ${account.planLabel}`
-              : account.label,
-            onClick: () => {
-              const nextId = selectedId === account.id ? null : account.id;
-              globalThis.__codexMuxSelectedProfileAccountId = nextId;
-              setSelectedId(nextId);
-              onSelect?.();
-            },
-            children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
-              imageUrl: account.profileImageUrl,
-              label: account.label,
-              className: "size-20",
-            }),
-          },
-          account.id,
-        ),
+    className: "flex items-center justify-center",
+    "aria-label": `接続中のサブスクリプション: ${accounts.length}件`,
+    children: accounts.map((account, index) =>
+      (0, __CODEX_MUX_JSX__.jsx)(
+        "span",
+        {
+          className:
+            "rounded-full border-4 border-token-bg-primary transition-transform hover:z-10 hover:scale-105",
+          style: { marginLeft: index === 0 ? 0 : -20, zIndex: index },
+          title: account.planLabel
+            ? `${account.label} · ${account.planLabel}`
+            : account.label,
+          children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
+            imageUrl: account.profileImageUrl,
+            label: account.label,
+            className: "size-20",
+          }),
+        },
+        account.id,
       ),
-    }),
+    ),
   });
+}
+
+function CodexMuxProfileDisplayName() {
+  const accounts = CodexMuxUseConnectedAccounts();
+  if (accounts.length < 2) return null;
+  return "合算プロフィール";
+}
+
+function CodexMuxProfileUsername() {
+  const accounts = CodexMuxUseConnectedAccounts();
+  if (accounts.length < 2) return null;
+  return `接続中のサブスクリプション: ${accounts.length}件`;
 }
 
 function CodexMuxPluginScope() {
@@ -815,7 +804,11 @@ function CodexMuxPluginScope() {
 // error handling, and the initials fallback.
 globalThis.CodexMuxAccountAvatar = CodexMuxAccountAvatar;
 globalThis.codexMuxProfileData = codexMuxProfileData;
-globalThis.CodexMuxProfileAvatarStack = (props) =>
-  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileAvatarStack, props || {});
+globalThis.CodexMuxProfileAvatarStack = () =>
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileAvatarStack, {});
+globalThis.CodexMuxProfileDisplayName = () =>
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileDisplayName, {});
+globalThis.CodexMuxProfileUsername = () =>
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileUsername, {});
 globalThis.CodexMuxPluginScope = () =>
   (0, __CODEX_MUX_JSX__.jsx)(CodexMuxPluginScope, {});
