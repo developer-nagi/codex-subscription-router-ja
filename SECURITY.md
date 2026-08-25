@@ -1,29 +1,26 @@
-# Security policy
+# セキュリティポリシー
 
-## Supported versions
+## 対応バージョン
 
-Only the latest tagged source release is supported. Compatibility with a
-specific official ChatGPT build is listed in `docs/COMPATIBILITY.md`.
+サポート対象は最新のタグ付きソースリリースのみ。特定の公式 ChatGPT ビルドとの対応状況は
+`docs/COMPATIBILITY.md` に記載する。
 
-## Reporting a vulnerability
+## 脆弱性の報告
 
-Do not open a public issue for a suspected credential leak, signing bypass,
-arbitrary code execution path, or control-server authentication flaw. Use the
-repository's **Security → Report a vulnerability** form. If that form is not
-available, open a private draft security advisory from the Security tab and
-invite the repository owner. Include:
+資格情報の漏洩、任意コード実行の経路、制御サーバーの認証不備が疑われる場合は、公開の issue を
+作成しないこと。リポジトリの **Security → Report a vulnerability** から報告する。このフォームが
+利用できない場合は Security タブから非公開のセキュリティアドバイザリ草稿を作成し、リポジトリ
+所有者を招待する。次を含めること。
 
-- the project version and exact commit;
-- the official ChatGPT build used as input;
-- reproduction steps and expected impact; and
-- whether credentials or other private data may have been exposed.
+- プロジェクトのバージョンと正確なコミット
+- 入力に用いた公式 ChatGPT のバージョン
+- 再現手順と想定される影響
+- 資格情報などの非公開データが露出した可能性の有無
 
-Do not include real access tokens, device codes, account identifiers, or
-private conversation content. Revoke affected credentials before sharing a
-redacted reproduction.
+実際のアクセストークン、デバイスコード、アカウント識別子、非公開の会話内容を含めないこと。
+再現手順を共有する前に、影響を受ける資格情報を失効させること。
 
-## Scope
+## 対象範囲
 
-Reports about OpenAI's unmodified app or service should go to OpenAI. This
-project's scope is the patcher, multiplexer, injected UI, isolated local state,
-and independent signing flow.
+OpenAI の未変更のアプリまたはサービスに関する報告は OpenAI へ送ること。本プロジェクトの
+対象範囲は、パッチャー、多重化プロキシ、注入する UI、隔離されたローカル状態である。

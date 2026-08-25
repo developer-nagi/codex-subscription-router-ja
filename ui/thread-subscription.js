@@ -22,7 +22,7 @@ function CodexMuxThreadSubscription() {
           `${CODEX_MUX_THREAD_API}/thread-account?threadId=${encodeURIComponent(threadId)}`,
           { headers: { "X-Codex-Mux-Token": CODEX_MUX_THREAD_TOKEN } },
         );
-        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        if (!response.ok) throw new Error(`リクエストに失敗しました (${response.status})`);
         const body = await response.json();
         if (active) setAccount(body.account || null);
       } catch {
@@ -63,7 +63,7 @@ function CodexMuxThreadSubscription() {
   const AccountAvatar = globalThis.CodexMuxAccountAvatar;
   return (0, zE.jsx)(K.Section, {
     sectionKey: "codex-mux-subscription",
-    title: "Subscription",
+    title: "サブスクリプション",
     children: (0, zE.jsxs)("div", {
       className: "flex min-h-9 items-center justify-between gap-3 py-1 text-sm",
       children: [
@@ -89,10 +89,10 @@ function CodexMuxThreadSubscription() {
           className: "shrink-0 tabular-nums text-token-description-foreground",
           children:
             remaining == null
-              ? "Usage unavailable"
+              ? "使用状況を取得できません"
               : depleted
-                ? "Depleted"
-                : `${Math.round(remaining)}% remaining`,
+                ? "残量なし"
+                : `残り ${Math.round(remaining)}%`,
         }),
       ],
     }),

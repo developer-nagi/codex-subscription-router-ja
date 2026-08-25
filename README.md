@@ -1,294 +1,231 @@
 # Codex Subscription Router
 
-![Multi-subscription account menu](screenshots/account-menu.png)
+![マルチサブスクリプションのアカウントメニュー](screenshots/account-menu.png)
 
-Use multiple ChatGPT subscriptions from one independent macOS desktop app.
+複数の ChatGPT サブスクリプションを、1 つの独立した Windows デスクトップアプリから使う。
 
-Codex Subscription Router creates a locally patched copy of the official
-ChatGPT app, balances new chats across connected subscriptions, and keeps every
-thread on one subscription so follow-up turns retain conversation context and
-benefit from account-level caching.
+Codex Subscription Router は公式 ChatGPT デスクトップアプリのローカルなパッチ済みコピーを作成し、
+新しいチャットを接続済みのサブスクリプションへ分散させる。各スレッドは 1 つのサブスクリプションに
+固定されるため、続きの発言でも会話コンテキストが維持され、アカウント単位のキャッシュが効く。
 
-The official ChatGPT installation is used only as build input and is never
-modified. This repository contains source code and build tooling—not OpenAI
-binaries or a prebuilt application.
+公式アプリはビルド入力として読み取るだけで、決して変更しない。このリポジトリにはソースコードと
+ビルドツールのみが含まれ、OpenAI のバイナリや配布可能なアプリは含まれない。
 
 > [!WARNING]
-> This is an unofficial, version-sensitive project. It is not affiliated with
-> or supported by OpenAI. Review the source and ensure your use complies with
-> the terms governing every connected subscription.
+> 本プロジェクトは非公式で、公式ビルドのバージョンに強く依存する。OpenAI とは無関係であり、
+> サポートも受けられない。利用前にソースを確認し、接続する各サブスクリプションに適用される
+> 規約に適合するかを自分で判断すること。
 
-![Combined multi-account profile](screenshots/combined-profile-20px.png)
+![合算プロフィール](screenshots/combined-profile-20px.png)
 
-## Highlights
+## 主な機能
 
-- **Quota-aware routing.** New chats favour weekly allowance that will expire
-  sooner, with a bounded boost for accounts holding banked usage resets.
-- **Sticky conversations.** Once a thread is assigned, every follow-up returns
-  to the same subscription unless that subscription is depleted.
-- **Automatic failover.** A depleted thread continues through another account
-  with quota; if the whole pool is empty, the app shows one combined alert.
-- **Native account management.** The existing profile menu shows pooled usage,
-  profile photos, plan names, masked emails, and device-code sign-in.
-- **Account-aware settings.** Profile statistics can be viewed together or per
-  subscription, while the Plugins page can switch Apps and MCP connections
-  between accounts.
-- **Per-account resets.** The native rate-limit sheet shows and consumes resets
-  for the selected subscription.
-- **Working macOS integrations.** The copied Appshots and Computer Use helper is
-  independently identified and signed so it can receive its own privacy grants.
+- **利用枠を考慮したルーティング。** 新しいチャットは、先に失効する週次利用枠を優先し、
+  貯まっているリセットクレジットに上限付きの加点を与えて割り当てる。
+- **スレッドの固定。** 一度割り当てたスレッドは、その枠を使い切らない限り常に同じ
+  サブスクリプションへ送られる。
+- **自動フェイルオーバー。** 枠を使い切ったスレッドは、余力のある別アカウントで継続する。
+  プール全体が空の場合は、まとめた 1 件のアラートを表示する。
+- **ネイティブなアカウント管理。** 既存のプロフィールメニューに、合算利用量・プロフィール写真・
+  プラン名・マスクされたメールアドレス・デバイスコードサインインを表示する。
+- **アカウント別のリセット。** ネイティブのレート制限シートで、選択したサブスクリプションの
+  リセットクレジットを表示・消費する。
+- **日本語 UI。** 注入する UI はすべて日本語。アプリ本体も Windows の表示言語に従い日本語で動作する。
 
-## How it works
+## 仕組み
 
-The patched desktop still opens one app-server connection. A small Go
-multiplexer fans that connection out to one official Codex child per account.
-Each child has an isolated Codex home, while the multiplexer records the owner
-of every thread.
+パッチ済みデスクトップは従来どおり app-server 接続を 1 本だけ開く。小さな Go 製の多重化プロキシが
+その接続をアカウントごとの公式 Codex 子プロセスへ分配する。各子プロセスは隔離された Codex ホームを
+持ち、多重化プロキシがスレッドごとの所有アカウントを記録する。
 
 ```text
-Codex Subscription Router.app
+Codex Subscription Router (CodexSubscriptionRouter.exe)
         │
-        │ one app-server connection
+        │ app-server 接続 1 本
         ▼
-    codex-mux
-    ├── Primary       → ~/.codex
-    ├── Subscription 2 → isolated Codex home
-    └── Subscription 3 → isolated Codex home
+    resources\codex.exe  (Go 多重化プロキシ)
+    ├── プライマリ            → %USERPROFILE%\.codex
+    ├── サブスクリプション 2  → 隔離された Codex ホーム
+    └── サブスクリプション 3  → 隔離された Codex ホーム
              │
-             └── thread ID → persistent account owner
+             └── スレッド ID → 所有アカウントを永続化
 ```
 
-New-thread routing compares the quota burn rate needed before each weekly reset,
-then applies a capped banked-reset boost. Short-window usage, pinned-thread
-count, and stable account order break close results. Existing threads do not
-migrate merely for load balancing.
+公式の `codex.exe` は `codex.real.exe` として同じディレクトリに保持され、多重化プロキシから
+子プロセスとして起動される。`app-server` 以外の呼び出しはそのまま素通しする。
 
-Read [the architecture](docs/ARCHITECTURE.md) for the request flow and
-[the security model](docs/SECURITY-MODEL.md) for trust boundaries.
+詳細は [アーキテクチャ](docs/ARCHITECTURE.md) と
+[セキュリティモデル](docs/SECURITY-MODEL.md) を参照。
 
-## Compatibility
+## 対応環境
 
-Codex Subscription Router currently targets:
-
-| Component | Supported value |
+| 項目 | 対応値 |
 | --- | --- |
-| Platform | macOS on Apple silicon |
-| Official ChatGPT version | `26.803.61601` |
-| Official bundle build | `6396` |
-| Go | 1.26 or newer |
-| Node.js | 22.12 or newer |
+| OS | Windows 11 (x64) |
+| 公式 ChatGPT デスクトップ | MSIX パッケージ `OpenAI.Codex` `26.818.8289.0` |
+| Go | 1.26 以上 |
+| Node.js | 22.12 以上 |
+| Python | 3.11 以上 |
 
-The patcher verifies the official version, build, ASAR hash, renderer anchors,
-and native binary constants before changing anything. An unknown upstream build
-is rejected by default rather than being partially patched. See
-[Compatibility](docs/COMPATIBILITY.md) for the recorded hash and test details.
+パッチャーは公式アプリのバージョンと `app.asar` の SHA-256、および書き換える全アンカーを
+事前に検証する。未知の上流ビルドは既定で拒否し、部分的なパッチを当てない。記録済みのハッシュは
+[対応状況](docs/COMPATIBILITY.md) を参照。
 
-## Requirements
+Windows 版は macOS 版と異なり、コード署名も ASAR 整合性ハッシュの更新も不要である。公式ビルドの
+Electron fuse `EnableEmbeddedAsarIntegrityValidation` が無効化されているため、再パックした
+`app.asar` はそのまま読み込まれる。
 
-- The official ChatGPT app installed at `/Applications/ChatGPT.app`
-- Xcode Command Line Tools
-- Go 1.26+
-- Node.js 22.12+ and npm
-- An Apple Development or Developer ID Application signing identity
+## 前提
 
-A team-backed signing identity is required for reliable Appshots and Computer
-Use permissions. Ad-hoc signing is intended only for diagnostics.
+- Microsoft Store 版の公式 ChatGPT デスクトップアプリ
+- Go 1.26 以上
+- Node.js 22.12 以上と npm
+- Python 3.11 以上
 
-## Install
-
-Run one command. It downloads or updates the source, installs the locked build
-dependency, creates the independently signed app, and launches it:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/b-nnett/codex-subscription-router/main/install.sh | /bin/bash
+```powershell
+winget install --id Git.Git
+winget install --id GoLang.Go
+winget install --id OpenJS.NodeJS.LTS
+winget install --id Python.Python.3.12
 ```
 
-The installer keeps its source checkout in
-`~/.codex-subscription-router/source`. On an existing installation it uses the
-same account state, creates a recoverable backup, and requires signing-team
-continuity so macOS privacy grants remain valid. It stops with a clear message
-instead of making a partial installation when a prerequisite or upstream
-compatibility check fails.
+## インストール
+
+PowerShell で次を実行する。ソースの取得・更新、固定されたビルド依存の導入、独立アプリの作成、
+起動までを 1 コマンドで行う。
+
+```powershell
+irm https://raw.githubusercontent.com/developer-nagi/codex-subscription-router-ja/main/install.ps1 | iex
+```
+
+インストーラはソースを `%USERPROFILE%\.codex-subscription-router\source` に保持する。既存の
+インストールがある場合はアカウント状態を引き継ぎ、復元可能なバックアップを作成する。前提条件や
+上流互換性の検査に失敗したときは、部分的なインストールを作らずに明確なメッセージで停止する。
 
 > [!TIP]
-> To inspect the installer before running it, open
-> [`install.sh`](install.sh) or download it without piping it into a shell.
+> 実行前に内容を確認するには [`install.ps1`](install.ps1) を開くか、パイプせずにダウンロードする。
 
-### Install via prompt
+### クローンからインストール
 
-> Install Codex Subscription Router from `https://github.com/b-nnett/codex-subscription-router` on this Mac using the repository's supported one-command installer, without modifying the official ChatGPT app or deleting any existing router state. Verify the resulting app and Computer Use helper signatures, launch the app, and ask me only if a prerequisite or macOS permission requires interaction.
-
-### Install from a clone
-
-```sh
-git clone https://github.com/b-nnett/codex-subscription-router.git
-cd codex-subscription-router
+```powershell
+git clone https://github.com/developer-nagi/codex-subscription-router-ja.git
+cd codex-subscription-router-ja
 npm ci --ignore-scripts
-python3 scripts/patch_app.py
-open "$HOME/Applications/Codex Subscription Router.app"
+python scripts/patch_app.py
 ```
 
-This creates:
+作成されるもの:
 
-- `~/Applications/Codex Subscription Router.app`
-- `~/Applications/Codex Subscription Router Computer Use.app`
-- an independent desktop profile under
-  `~/Library/Application Support/Codex Subscription Router`
+- `%LOCALAPPDATA%\Programs\Codex Subscription Router`
+- スタートメニューのショートカット「Codex Subscription Router」
+- `%APPDATA%\Codex Subscription Router` 配下の独立したデスクトッププロファイル
 
-The first valid Developer ID Application identity is selected, falling back to
-an Apple Development identity. Select a certificate explicitly when needed:
+公式アプリと同時に起動できる。プロファイルとユーザーデータが分離されているため、互いに影響しない。
 
-```sh
-CODEX_MUX_SIGNING_IDENTITY="Developer ID Application: Example Corp (TEAMID1234)" \
-  python3 scripts/patch_app.py
-```
+## サブスクリプションを追加する
 
-Reuse the same Apple team for every rebuild. Changing teams changes the app's
-designated requirement and can invalidate existing macOS privacy consent. The
-patcher refuses an unexpected team change unless you deliberately pass
-`--allow-signing-team-change`.
+1. サイドバー下部のプロフィールメニューを開く。
+2. **サブスクリプションを追加** を選ぶ。
+3. 表示されたデバイスコードでブラウザからサインインする。
+4. アプリに戻り、アカウント行が現れるのを待つ。
 
-For diagnostic builds without a certificate:
+コード表示中はメニュー外をクリックしても閉じない。コードをクリックするとコピーされ、
+確認ページが開く。
 
-```sh
-python3 scripts/patch_app.py --allow-adhoc-signing
-```
+プロフィールメニューには合算の週次利用量に続いて、サブスクリプションごとの行が並ぶ。
+メールアドレスはホバーするまでマスクされる。最終行から常に追加のサインインを開始できる。
 
-Appshots and Computer Use may not function with an ad-hoc signature.
+## ルーティングの挙動
 
-## Grant macOS permissions
-
-Open **System Settings → Privacy & Security** and grant:
-
-| Permission | Application |
+| 状況 | 挙動 |
 | --- | --- |
-| Accessibility | Codex Subscription Router |
-| Screen & System Audio Recording | Codex Subscription Router Computer Use |
+| 新しいチャット | 失効が近い利用枠、貯まったリセット、短期枠の逼迫度で割り当て |
+| 続きの発言 | そのスレッドに永続化された所有アカウントへ送る |
+| 所有アカウントが枯渇 | 余力のある別アカウントで継続 |
+| 全アカウントが枯渇 | 次回リセット時刻を含む 1 件のアラート |
+| アカウントを無効化 | ルーティングと合算利用枠から除外 |
 
-When macOS offers **Quit & Reopen**, use it. If the app does not relaunch,
-reopen Codex Subscription Router manually. If the Computer Use row does not
-appear, press the plus button and choose
-`~/Applications/Codex Subscription Router Computer Use.app`.
+## 更新と再ビルド
 
-Do not select the official ChatGPT or Codex Computer Use helper for this build;
-the independent app has its own identity and permission rows. macOS may also
-request Automation access the first time Computer Use controls another app.
+コピーしたアプリの自動更新経路は公式 MSIX パッケージから切り離されているため、Store 側の更新で
+パッチ済みコピーが上書きされることはない。公式アプリを更新したあと、その新しいビルドが
+対応表に載っていることを確認してから再ビルドする。
 
-## Add subscriptions
-
-1. Open the profile menu at the bottom of the sidebar.
-2. Select **Add another subscription**.
-3. Complete the displayed device-code sign-in in your browser.
-4. Return to Codex Subscription Router and wait for the account row to appear.
-
-While the code is visible, clicking away does not dismiss the menu. Clicking
-the code copies it and opens the verification page.
-
-The profile menu displays combined weekly usage followed by one row per
-subscription. Email addresses remain masked until hovered. The final row always
-starts another sign-in.
-
-## Routing behavior
-
-| Situation | Behaviour |
-| --- | --- |
-| New chat | Assigned by quota-at-risk, banked resets, and short-window pressure |
-| Follow-up | Sent to the thread's persisted account owner |
-| Owner depleted | Continued through another account with capacity |
-| Every account depleted | Combined quota alert with the next known reset |
-| Account disabled | Excluded from routing and pooled usable quota |
-
-The subscription assigned to the current thread appears in its pinned summary.
-
-## Profiles, plugins, and resets
-
-**Profile statistics** begin in a combined view with overlapping account
-photos. Select a photo to see only that subscription's identity and statistics;
-select it again to return to the combined view.
-
-**Settings → Plugins** includes a subscription picker. Plugin definitions and
-managed MCP configuration are shared, while Apps, connection status, and OAuth
-login are scoped to the selected subscription.
-
-**Rate-limit resets** remain native to the app, with an account picker added to
-the sheet. Selecting a subscription changes the displayed balance and ensures
-the reset is consumed only for that account.
-
-![Account-scoped plugin connections](screenshots/plugin-account-picker-secondary-final.png)
-
-## Update or rebuild
-
-The copied app's updater is disabled so an official update cannot overwrite the
-patch. Update `/Applications/ChatGPT.app`, verify that the new build is listed
-as compatible, then rebuild:
-
-```sh
-python3 scripts/patch_app.py --force
+```powershell
+python scripts/patch_app.py --force
 ```
 
-Quit Codex Subscription Router and its Computer Use helper first. Existing
-destinations are moved to timestamped directories under `~/.codex-mux/backups`;
-account state and credentials are stored outside the app bundle and remain
-intact. Delete old backups manually after the rebuilt app passes the smoke test.
+先に Codex Subscription Router を終了しておく。既存のインストールは
+`%USERPROFILE%\.codex-mux\backups` 配下のタイムスタンプ付きディレクトリへ退避される。アカウント状態と
+資格情報はアプリ本体の外に保存されるため、そのまま維持される。再ビルドしたアプリの動作確認後に、
+古いバックアップは手動で削除する。
 
-Build separately for each macOS user. Generated bundles contain user-specific
-helper and socket paths and are not relocatable or intended for redistribution.
+## ローカルデータとセキュリティ
 
-## Local data and security
-
-| Path | Purpose |
+| パス | 用途 |
 | --- | --- |
-| `~/.codex` | Primary credentials, conversations, and cache |
-| `~/.codex-mux/state.json` | Account metadata and sticky thread ownership |
-| `~/.codex-mux/accounts/<id>/codex-home` | Isolated secondary account data |
-| `~/.codex-mux/control-token` | Token for the loopback-only control service |
-| `~/.codex-mux/backups` | Recoverable app and helper backups |
-| `~/Library/Application Support/Codex Subscription Router` | Independent desktop profile |
+| `%USERPROFILE%\.codex` | プライマリの資格情報・会話・キャッシュ |
+| `%USERPROFILE%\.codex-mux\state.json` | アカウント情報とスレッド所有の永続化 |
+| `%USERPROFILE%\.codex-mux\accounts\<id>\codex-home` | 隔離されたセカンダリアカウントのデータ |
+| `%USERPROFILE%\.codex-mux\control-token` | ループバック限定の制御サービス用トークン |
+| `%USERPROFILE%\.codex-mux\backups` | 復元可能なアプリのバックアップ |
+| `%APPDATA%\Codex Subscription Router` | 独立したデスクトッププロファイル |
 
-The control service binds only to `127.0.0.1` and protects private routes with a
-random 256-bit token. OAuth tokens stay inside their account's Codex home and
-are never returned by the control API. Account directories are owner-only.
+制御サービスは `127.0.0.1` にのみバインドし、非公開経路をランダムな 256 ビットトークンで保護する。
+OAuth トークンは各アカウントの Codex ホーム内に留まり、制御 API から返されることはない。
+状態ディレクトリの ACL は継承を切り、現在のユーザーのみに限定する。
 
-Plugin configuration is intentionally synchronized from the Primary account.
-Inline secrets inside shared MCP configuration are therefore copied to each
-isolated account home; the account homes are not separate secret boundaries.
+プラグイン構成は意図的にプライマリアカウントから同期される。共有 MCP 構成に埋め込まれた秘密情報は
+各隔離アカウントのホームへコピーされるため、アカウントディレクトリは秘密情報の分離境界ではない。
 
-See [SECURITY.md](SECURITY.md) before reporting a credential, signing, or local
-control-service issue.
+資格情報・署名・ローカル制御サービスに関する問題は [SECURITY.md](SECURITY.md) を先に読むこと。
 
-## Development and verification
+## 開発と検証
 
-```sh
+```powershell
 npm ci --ignore-scripts
 npm run check
 npm run release:check
 ```
 
-The Go backend and injected renderer have no runtime third-party dependencies.
-`@electron/asar` is build-only. Deterministic UI preview routes are enabled only
-when `CODEX_MUX_UI_TESTS=1` is present at launch and remain token-authenticated.
+Go バックエンドと注入するレンダラーには実行時のサードパーティ依存がない。`@electron/asar` は
+ビルド時のみ使う。決定的な UI プレビュー経路は、起動時に `CODEX_MUX_UI_TESTS=1` がある場合のみ
+有効になり、常にトークン認証を要求する。
 
-The signed-app test procedure is in [SMOKE-TEST.md](docs/SMOKE-TEST.md). The
-latest completed run is recorded in
-[E2E-REPORT-0.1.0.md](docs/E2E-REPORT-0.1.0.md).
+実機での確認手順は [SMOKE-TEST.md](docs/SMOKE-TEST.md) にある。
 
-## Known limitations
+## 既知の制限
 
-- Upstream ChatGPT updates can require new, reviewed patch anchors.
-- The initial merged history fetch is limited to 500 threads per account.
-- Combined “skills explored” totals can count the same skill once per account
-  because the upstream profile response exposes counts rather than skill IDs.
-- Generated app bundles are tied to one macOS user and signing team.
-- Releases are source-only; patched OpenAI binaries are never distributed.
+- 上流の ChatGPT 更新により、レンダラーのアンカーを再導出する必要が生じる場合がある。
+  アンカーはビルドごとの minify 結果に依存し、バージョン間で互換性がない。
+- macOS 版にあった以下の機能は、Windows 版で該当画面の実装が変わったため未移植:
+  プロフィール設定のアカウント別アバター選択、設定 → プラグインのサブスクリプション切り替え、
+  スレッド要約の「サブスクリプション」欄。詳細と現状は
+  [対応状況](docs/COMPATIBILITY.md) を参照。
+- 初回の履歴統合取得はアカウントあたり 500 スレッドまで。
+- 合算の「探索したスキル」はアカウントごとに同じスキルを重複計上しうる。上流のプロフィール応答が
+  スキル ID ではなく件数を返すため。
+- 配布はソースのみ。パッチ済みの OpenAI バイナリを配布することはない。
 
-## Contributing and releases
+## fork 元の変更を取り込む
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Releases use
-the source-only process in [RELEASING.md](docs/RELEASING.md) and require a
-completed signed-app smoke test for the exact tagged commit.
+本 fork は fork 元 (macOS 版) と大きく分岐しているため、`git merge upstream/main` は使わない。
+上流の変更はコミット単位で確認し、必要なものだけを適用する。
 
-## License
+```powershell
+npm run upstream:check -- --fetch
+```
 
-Project source is available under the [MIT License](LICENSE). ChatGPT, Codex,
-and the official macOS application are OpenAI products and are not covered by
-this license.
+未確認の上流コミットを列挙し、変更ファイルを「取り込み候補 / 要注意 / 対象外」に分類する。
+分岐元が古い上流ブランチも警告する。手順と判断の記録は
+[UPSTREAM-SYNC.md](docs/UPSTREAM-SYNC.md) と `scripts/upstream-sync.json` にある。
+
+## コントリビューションとリリース
+
+変更を送る前に [CONTRIBUTING.md](CONTRIBUTING.md) を読むこと。リリースは
+[RELEASING.md](docs/RELEASING.md) のソース限定手順に従い、対象コミットでの実機確認を必須とする。
+
+## ライセンス
+
+本プロジェクトのソースは [MIT License](LICENSE) で提供する。ChatGPT、Codex、および公式の
+Windows アプリは OpenAI の製品であり、本ライセンスの対象外である。

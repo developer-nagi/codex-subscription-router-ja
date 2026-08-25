@@ -19,7 +19,7 @@ async function codexMuxRequest(path, options = {}) {
     },
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
+  if (!response.ok) throw new Error(body.error || `リクエストに失敗しました (${response.status})`);
   return body;
 }
 
@@ -72,28 +72,16 @@ async function codexMuxConsumeRateLimitReset(accountId, input) {
   );
 }
 
-function CodexMuxUsageModal({
-  onClose,
-}) {
-  return (0, e7.jsx)(QLs, {
-    defaultResetCreditsOpen: true,
-    initialAvailableCount: 0,
-    isRateLimitReached: false,
-    onClose,
-    onResetComplete: () => {},
-  });
-}
-
 function CodexMuxUseResetAccountState() {
   const cachedAccounts = (globalThis.__codexMuxConnectedAccounts || []).filter(
     (account) => account.connected && account.enabled,
   );
-  const [accounts, setAccounts] = kXc.useState(cachedAccounts);
-  const [selectedId, setSelectedId] = kXc.useState("primary");
-  const [resetCounts, setResetCounts] = kXc.useState({});
-  const [loading, setLoading] = kXc.useState(cachedAccounts.length === 0);
+  const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState(cachedAccounts);
+  const [selectedId, setSelectedId] = __CODEX_MUX_REACT__.useState("primary");
+  const [resetCounts, setResetCounts] = __CODEX_MUX_REACT__.useState({});
+  const [loading, setLoading] = __CODEX_MUX_REACT__.useState(cachedAccounts.length === 0);
 
-  const loadAccounts = kXc.useCallback(async () => {
+  const loadAccounts = __CODEX_MUX_REACT__.useCallback(async () => {
     const result = await codexMuxRequest("/accounts");
     const connected = (result.accounts || []).filter(
       (account) => account.connected && account.enabled,
@@ -118,11 +106,11 @@ function CodexMuxUseResetAccountState() {
     setResetCounts(Object.fromEntries(entries));
   }, []);
 
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     loadAccounts().catch(() => setLoading(false));
   }, [loadAccounts]);
 
-  kXc.useEffect(
+  __CODEX_MUX_REACT__.useEffect(
     () => () => {
       delete window.__codexMuxResetAccountId;
       delete window.__codexMuxSelectedUsageWindows;
@@ -138,7 +126,7 @@ function CodexMuxUseResetAccountState() {
   window.__codexMuxSelectedUsageWindows = selected
     ? codexMuxUsageWindows(selected.rateLimits)
     : null;
-  window.__codexMuxResetAccountSelector = (0, e7.jsx)(
+  window.__codexMuxResetAccountSelector = (0, __CODEX_MUX_JSX__.jsx)(
     CodexMuxResetAccountSelector,
     {
       accounts,
@@ -158,26 +146,26 @@ function CodexMuxResetAccountSelector({
   resetCounts,
   selectedId,
 }) {
-  return (0, e7.jsxs)("div", {
+  return (0, __CODEX_MUX_JSX__.jsxs)("div", {
     className: "pt-4",
     children: [
-      (0, e7.jsx)("div", {
+      (0, __CODEX_MUX_JSX__.jsx)("div", {
         className:
           "mb-2 px-1 text-xs font-medium text-token-text-secondary",
-        children: "Subscription",
+        children: "サブスクリプション",
       }),
-      (0, e7.jsx)("div", {
+      (0, __CODEX_MUX_JSX__.jsx)("div", {
         className:
           "flex flex-wrap gap-2 rounded-2xl border border-token-border p-2",
         children: loading
-          ? (0, e7.jsx)("div", {
+          ? (0, __CODEX_MUX_JSX__.jsx)("div", {
               className: "px-2 py-2 text-sm text-token-text-secondary",
-              children: "Loading subscriptions…",
+              children: "サブスクリプションを読み込み中…",
             })
           : accounts.map((account) => {
               const selected = account.id === selectedId;
               const count = resetCounts[account.id];
-              return (0, e7.jsxs)(
+              return (0, __CODEX_MUX_JSX__.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -191,28 +179,26 @@ function CodexMuxResetAccountSelector({
                   "aria-pressed": selected,
                   onClick: () => onSelect(account.id),
                   children: [
-                    (0, e7.jsx)(CodexMuxAccountAvatar, {
+                    (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
                       imageUrl: account.profileImageUrl,
                       label: account.label,
                       className: "size-7",
                     }),
-                    (0, e7.jsxs)("span", {
+                    (0, __CODEX_MUX_JSX__.jsxs)("span", {
                       className: "flex min-w-0 flex-col",
                       children: [
-                        (0, e7.jsx)("span", {
+                        (0, __CODEX_MUX_JSX__.jsx)("span", {
                           className: "max-w-40 truncate text-sm font-medium",
                           children: account.planLabel
                             ? `${account.label} · ${account.planLabel}`
                             : account.label,
                         }),
-                        (0, e7.jsx)("span", {
+                        (0, __CODEX_MUX_JSX__.jsx)("span", {
                           className: "text-xs text-token-text-tertiary",
                           children:
                             count == null
-                              ? "Resets unavailable"
-                              : count === 1
-                                ? "1 reset available"
-                                : `${count} resets available`,
+                              ? "リセット情報を取得できません"
+                              : `利用可能なリセット: ${count}回`,
                         }),
                       ],
                     }),
@@ -227,16 +213,15 @@ function CodexMuxResetAccountSelector({
 }
 
 function CodexMuxAccountMenu() {
-  const modalScope = Lo(Q);
-  const [accounts, setAccounts] = kXc.useState([]);
-  const [loading, setLoading] = kXc.useState(true);
-  const [busy, setBusy] = kXc.useState(false);
-  const [error, setError] = kXc.useState("");
-  const [login, setLogin] = kXc.useState(null);
-  const [codeCopied, setCodeCopied] = kXc.useState(false);
+  const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState([]);
+  const [loading, setLoading] = __CODEX_MUX_REACT__.useState(true);
+  const [busy, setBusy] = __CODEX_MUX_REACT__.useState(false);
+  const [error, setError] = __CODEX_MUX_REACT__.useState("");
+  const [login, setLogin] = __CODEX_MUX_REACT__.useState(null);
+  const [codeCopied, setCodeCopied] = __CODEX_MUX_REACT__.useState(false);
   const loginAccountId = login?.accountId || null;
 
-  const refresh = kXc.useCallback(async () => {
+  const refresh = __CODEX_MUX_REACT__.useCallback(async () => {
     try {
       const result = await codexMuxRequest("/accounts");
       const nextAccounts = result.accounts || [];
@@ -252,7 +237,7 @@ function CodexMuxAccountMenu() {
     }
   }, []);
 
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     refresh();
     const events = new EventSource(
       `${CODEX_MUX_API}/events?token=${encodeURIComponent(CODEX_MUX_TOKEN)}`,
@@ -283,7 +268,7 @@ function CodexMuxAccountMenu() {
     };
   }, [refresh, loginAccountId]);
 
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     if (!login) return;
     const allowEscapeDismissal = (event) => {
       if (event.key !== "Escape") return;
@@ -316,7 +301,7 @@ function CodexMuxAccountMenu() {
     try {
       const created = await codexMuxRequest("/accounts", {
         method: "POST",
-        body: JSON.stringify({ label: `Subscription ${connected.length + 1}` }),
+        body: JSON.stringify({ label: `サブスクリプション ${connected.length + 1}` }),
       });
       const result = await codexMuxRequest(`/accounts/${created.account.id}/login`, {
         method: "POST",
@@ -354,29 +339,27 @@ function CodexMuxAccountMenu() {
         }
         window.open(destination.href, "_blank", "noopener,noreferrer");
       } catch {
-        setError("The sign-in verification page could not be opened safely.");
+        setError("サインイン確認ページを安全に開けませんでした。");
       }
     }
     try {
       await copy;
       setCodeCopied(userCode !== "");
     } catch {
-      setError("The sign-in code could not be copied.");
+      setError("サインインコードをコピーできませんでした。");
     }
   }
 
   const rows = [];
   rows.push(
-    (0, e7.jsx)(
-      _H,
+    (0, __CODEX_MUX_JSX__.jsx)(
+      __CODEX_MUX_MENU_ITEM__,
       {
-        LeftIcon: S2,
+        LeftIcon: CodexMuxUsageIcon,
         SubText: loading
-          ? "Connecting subscriptions…"
-          : connected.length === 1
-            ? "1 connected subscription"
-            : `${connected.length} connected subscriptions`,
-        rightIcon: (0, e7.jsx)("span", {
+          ? "サブスクリプションに接続中…"
+          : `接続中のサブスクリプション: ${connected.length}件`,
+        rightIcon: (0, __CODEX_MUX_JSX__.jsx)("span", {
           className: "text-token-description-foreground tabular-nums",
           children: loading
             ? "…"
@@ -384,15 +367,14 @@ function CodexMuxAccountMenu() {
               ? `${Math.round(totalRemaining)}%`
               : "–",
         }),
-        onSelect: () => BW(modalScope, CodexMuxUsageModal, {}),
-        children: "Usage remaining",
+        children: "残り利用枠",
       },
       "codex-mux-total",
     ),
   );
   if (connected.length > 0) {
     rows.push(
-      (0, e7.jsx)(CH.Separator, {}, "codex-mux-accounts-separator"),
+      (0, __CODEX_MUX_JSX__.jsx)(__CODEX_MUX_MENU__.Separator, {}, "codex-mux-accounts-separator"),
     );
   }
 
@@ -400,20 +382,20 @@ function CodexMuxAccountMenu() {
     const weekly = codexMuxWeeklyWindow(account.rateLimits);
     const remaining = weekly == null ? null : Math.max(0, 100 - weekly.usedPercent);
     rows.push(
-      (0, e7.jsx)(
-        _H,
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
         {
           LeftIcon: (iconProps) =>
-            (0, e7.jsx)(CodexMuxAccountAvatar, {
+            (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
               ...iconProps,
               imageUrl: account.profileImageUrl,
               label: account.label,
             }),
           SubText: account.email
-            ? (0, e7.jsx)(CodexMuxMaskedEmail, { email: account.email })
-            : account.planType || "ChatGPT subscription",
+            ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
+            : account.planType || "ChatGPTサブスクリプション",
           className: "group",
-          rightIcon: (0, e7.jsx)("span", {
+          rightIcon: (0, __CODEX_MUX_JSX__.jsx)("span", {
             className: "text-token-description-foreground tabular-nums",
             children: remaining == null ? "–" : `${Math.round(remaining)}%`,
           }),
@@ -428,17 +410,17 @@ function CodexMuxAccountMenu() {
 
   if (login) {
     rows.push(
-      (0, e7.jsx)(
-        _H,
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
         {
           LeftIcon: CodexMuxCopyIcon,
           SubText: login.userCode
             ? codeCopied
-              ? `Code ${login.userCode} copied`
-              : `Code ${login.userCode} · Click to copy`
-            : "Finish signing in with ChatGPT",
+              ? `コード ${login.userCode} をコピーしました`
+              : `コード ${login.userCode} · クリックでコピー`
+            : "ChatGPTでのサインインを完了してください",
           onSelect: copyCodeAndContinue,
-          children: "Continue sign-in",
+          children: "サインインを続行",
         },
         "codex-mux-login",
       ),
@@ -447,15 +429,15 @@ function CodexMuxAccountMenu() {
 
   if (error) {
     rows.push(
-      (0, e7.jsx)(
-        _H,
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
         {
-          LeftIcon: S2,
+          LeftIcon: CodexMuxAlertIcon,
           SubText: error,
           tone: "danger",
           allowWrap: true,
           subTextAllowWrap: true,
-          children: "Subscription pool unavailable",
+          children: "サブスクリプションプールを利用できません",
         },
         "codex-mux-error",
       ),
@@ -464,19 +446,19 @@ function CodexMuxAccountMenu() {
 
   if (!loading) {
     rows.push(
-      (0, e7.jsx)(
-        _H,
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
         {
           LeftIcon: CodexMuxPlusIcon,
           onSelect: addSubscription,
-          children: busy ? "Adding subscription…" : "Add another subscription",
+          children: busy ? "サブスクリプションを追加中…" : "サブスクリプションを追加",
         },
         "codex-mux-add",
       ),
     );
   }
-  rows.push((0, e7.jsx)(CH.Separator, {}, "codex-mux-separator"));
-  return (0, e7.jsx)(e7.Fragment, { children: rows });
+  rows.push((0, __CODEX_MUX_JSX__.jsx)(__CODEX_MUX_MENU__.Separator, {}, "codex-mux-separator"));
+  return (0, __CODEX_MUX_JSX__.jsx)(__CODEX_MUX_JSX__.Fragment, { children: rows });
 }
 
 function codexMuxWeeklyWindow(rateLimits) {
@@ -499,13 +481,50 @@ function codexMuxUsageWindows(rateLimits) {
     }));
 }
 
-function CodexMuxPlusIcon(props) {
-  return (0, e7.jsx)("svg", {
+function CodexMuxUsageIcon(props) {
+  return (0, __CODEX_MUX_JSX__.jsx)("svg", {
     viewBox: "0 0 20 20",
     fill: "none",
     "aria-hidden": true,
     ...props,
-    children: (0, e7.jsx)("path", {
+    children: (0, __CODEX_MUX_JSX__.jsx)("path", {
+      d: "M10 3.25a6.75 6.75 0 1 1 0 13.5 6.75 6.75 0 0 1 0-13.5Zm0 3v4l2.5 1.5",
+      stroke: "currentColor",
+      strokeWidth: 1.5,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    }),
+  });
+}
+
+function CodexMuxAlertIcon(props) {
+  return (0, __CODEX_MUX_JSX__.jsx)("svg", {
+    viewBox: "0 0 20 20",
+    fill: "none",
+    "aria-hidden": true,
+    ...props,
+    children: (0, __CODEX_MUX_JSX__.jsxs)(__CODEX_MUX_JSX__.Fragment, {
+      children: [
+        (0, __CODEX_MUX_JSX__.jsx)("circle", {
+          cx: 10, cy: 10, r: 6.75,
+          stroke: "currentColor", strokeWidth: 1.5,
+        }),
+        (0, __CODEX_MUX_JSX__.jsx)("path", {
+          d: "M10 6.5v4M10 13.25h.01",
+          stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round",
+        }),
+      ],
+    }),
+  });
+}
+
+function CodexMuxPlusIcon(props) {
+  return (0, __CODEX_MUX_JSX__.jsx)("svg", {
+    viewBox: "0 0 20 20",
+    fill: "none",
+    "aria-hidden": true,
+    ...props,
+    children: (0, __CODEX_MUX_JSX__.jsx)("path", {
       d: "M10 4.25v11.5M4.25 10h11.5",
       stroke: "currentColor",
       strokeWidth: 1.5,
@@ -515,14 +534,14 @@ function CodexMuxPlusIcon(props) {
 }
 
 function CodexMuxCopyIcon(props) {
-  return (0, e7.jsx)("svg", {
+  return (0, __CODEX_MUX_JSX__.jsx)("svg", {
     viewBox: "0 0 20 20",
     fill: "none",
     "aria-hidden": true,
     ...props,
-    children: (0, e7.jsxs)(e7.Fragment, {
+    children: (0, __CODEX_MUX_JSX__.jsxs)(__CODEX_MUX_JSX__.Fragment, {
       children: [
-        (0, e7.jsx)("rect", {
+        (0, __CODEX_MUX_JSX__.jsx)("rect", {
           x: 6.25,
           y: 6.25,
           width: 9.5,
@@ -531,7 +550,7 @@ function CodexMuxCopyIcon(props) {
           stroke: "currentColor",
           strokeWidth: 1.5,
         }),
-        (0, e7.jsx)("path", {
+        (0, __CODEX_MUX_JSX__.jsx)("path", {
           d: "M13.75 6.25V6A1.75 1.75 0 0 0 12 4.25H6A1.75 1.75 0 0 0 4.25 6v6c0 .97.78 1.75 1.75 1.75h.25",
           stroke: "currentColor",
           strokeWidth: 1.5,
@@ -543,13 +562,13 @@ function CodexMuxCopyIcon(props) {
 }
 
 function CodexMuxMaskedEmail({ email }) {
-  return (0, e7.jsxs)(e7.Fragment, {
+  return (0, __CODEX_MUX_JSX__.jsxs)(__CODEX_MUX_JSX__.Fragment, {
     children: [
-      (0, e7.jsx)("span", {
+      (0, __CODEX_MUX_JSX__.jsx)("span", {
         className: "group-hover:hidden",
         children: "••••••••",
       }),
-      (0, e7.jsx)("span", {
+      (0, __CODEX_MUX_JSX__.jsx)("span", {
         className: "hidden group-hover:inline",
         children: email,
       }),
@@ -558,10 +577,10 @@ function CodexMuxMaskedEmail({ email }) {
 }
 
 function CodexMuxAccountAvatar({ imageUrl, label, className }) {
-  const [failed, setFailed] = kXc.useState(false);
-  const resolvedImageUrl = jLa(imageUrl || null);
+  const [failed, setFailed] = __CODEX_MUX_REACT__.useState(false);
+  const resolvedImageUrl = __CODEX_MUX_IMAGE_URL__(imageUrl || null);
   if (resolvedImageUrl && !failed) {
-    return (0, e7.jsx)("img", {
+    return (0, __CODEX_MUX_JSX__.jsx)("img", {
       src: resolvedImageUrl,
       alt: "",
       className: `${className || "icon-sm"} rounded-full object-cover`,
@@ -575,7 +594,7 @@ function CodexMuxAccountAvatar({ imageUrl, label, className }) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
-  return (0, e7.jsx)("span", {
+  return (0, __CODEX_MUX_JSX__.jsx)("span", {
     className: `${className || "icon-sm"} flex items-center justify-center rounded-full bg-token-charts-purple/10 text-[9px] leading-none text-token-charts-purple`,
     "aria-hidden": true,
     children: initials || "?",
@@ -584,17 +603,17 @@ function CodexMuxAccountAvatar({ imageUrl, label, className }) {
 
 function CodexMuxOverlappingAvatars({ accounts, size = "size-20" }) {
   const overlapClass = size === "size-20" ? "-ml-10" : "-ml-2";
-  return (0, e7.jsx)("div", {
+  return (0, __CODEX_MUX_JSX__.jsx)("div", {
     className: "flex items-center justify-center",
     children: accounts.map((account, index) =>
-      (0, e7.jsx)(
+      (0, __CODEX_MUX_JSX__.jsx)(
         "span",
         {
           className: `${index === 0 ? "" : overlapClass} rounded-full border-4 border-token-bg-primary`,
           title: account.planLabel
             ? `${account.label} · ${account.planLabel}`
             : account.label,
-          children: (0, e7.jsx)(CodexMuxAccountAvatar, {
+          children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
             imageUrl: account.profileImageUrl,
             label: account.label,
             className: size,
@@ -607,13 +626,13 @@ function CodexMuxOverlappingAvatars({ accounts, size = "size-20" }) {
 }
 
 function CodexMuxProfileAvatarStack({ onSelect }) {
-  const [accounts, setAccounts] = kXc.useState(
+  const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState(
     globalThis.__codexMuxCombinedProfileAccounts || [],
   );
-  const [selectedId, setSelectedId] = kXc.useState(
+  const [selectedId, setSelectedId] = __CODEX_MUX_REACT__.useState(
     globalThis.__codexMuxSelectedProfileAccountId || null,
   );
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     let live = true;
     codexMuxRequest("/accounts")
       .then((result) => {
@@ -629,7 +648,7 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
       live = false;
     };
   }, []);
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     globalThis.__codexMuxSelectedProfileAccountId = null;
     setSelectedId(null);
     onSelect?.();
@@ -641,15 +660,15 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
   const visibleAccounts = selectedId
     ? accounts.filter((account) => account.id === selectedId)
     : accounts;
-  return (0, e7.jsx)("div", {
+  return (0, __CODEX_MUX_JSX__.jsx)("div", {
     className: "mb-4",
     "aria-label": selectedId
-      ? "Selected subscription profile"
-      : `${accounts.length} connected subscriptions`,
-    children: (0, e7.jsx)("div", {
+      ? "選択中のサブスクリプションのプロフィール"
+      : `接続中のサブスクリプション: ${accounts.length}件`,
+    children: (0, __CODEX_MUX_JSX__.jsx)("div", {
       className: "flex items-center justify-center",
       children: visibleAccounts.map((account, index) =>
-        (0, e7.jsx)(
+        (0, __CODEX_MUX_JSX__.jsx)(
           "button",
           {
             type: "button",
@@ -659,8 +678,8 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
               zIndex: index,
             },
             "aria-label": selectedId
-              ? `Show combined profile stats`
-              : `Show ${account.label} profile stats`,
+              ? `合算プロフィール統計を表示`
+              : `${account.label} のプロフィール統計を表示`,
             title: account.planLabel
               ? `${account.label} · ${account.planLabel}`
               : account.label,
@@ -670,7 +689,7 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
               setSelectedId(nextId);
               onSelect?.();
             },
-            children: (0, e7.jsx)(CodexMuxAccountAvatar, {
+            children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
               imageUrl: account.profileImageUrl,
               label: account.label,
               className: "size-20",
@@ -684,11 +703,11 @@ function CodexMuxProfileAvatarStack({ onSelect }) {
 }
 
 function CodexMuxPluginScope() {
-  const [accounts, setAccounts] = kXc.useState([]);
-  const [selectedId, setSelectedId] = kXc.useState("primary");
-  const [loading, setLoading] = kXc.useState(true);
+  const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState([]);
+  const [selectedId, setSelectedId] = __CODEX_MUX_REACT__.useState("primary");
+  const [loading, setLoading] = __CODEX_MUX_REACT__.useState(true);
   const queryClient = lt();
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     let live = true;
     codexMuxRequest("/accounts")
       .then((result) => {
@@ -708,7 +727,7 @@ function CodexMuxPluginScope() {
     };
   }, []);
 
-  kXc.useEffect(() => {
+  __CODEX_MUX_REACT__.useEffect(() => {
     globalThis.__codexMuxPluginAccountId = selectedId;
     return () => {
       delete globalThis.__codexMuxPluginAccountId;
@@ -730,35 +749,35 @@ function CodexMuxPluginScope() {
   const selected =
     accounts.find((account) => account.id === selectedId) || accounts[0] || null;
 
-  return (0, e7.jsxs)("div", {
+  return (0, __CODEX_MUX_JSX__.jsxs)("div", {
     className:
       "mb-5 rounded-2xl border border-token-border-light p-3",
     children: [
-      (0, e7.jsxs)("div", {
+      (0, __CODEX_MUX_JSX__.jsxs)("div", {
         className: "px-1",
         children: [
-          (0, e7.jsx)("div", {
+          (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "text-sm font-medium text-token-text-primary",
-            children: "Plugin connections",
+            children: "プラグイン接続",
           }),
-          (0, e7.jsx)("div", {
+          (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-0.5 text-xs text-token-text-secondary",
             children: selected
-              ? `Installs are shared. Connection access below is for ${selected.label}.`
-              : "Installs are shared. Choose a subscription for connection access.",
+              ? `インストールは全サブスクリプションで共有されます。以下の接続アクセスは「${selected.label}」のものです。`
+              : "インストールは全サブスクリプションで共有されます。接続アクセスに使うサブスクリプションを選択してください。",
           }),
         ],
       }),
       loading
-        ? (0, e7.jsx)("div", {
+        ? (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-3 px-1 text-sm text-token-text-tertiary",
-            children: "Loading subscriptions…",
+            children: "サブスクリプションを読み込み中…",
           })
-        : (0, e7.jsx)("div", {
+        : (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-3 flex flex-wrap gap-2",
             children: accounts.map((account) => {
               const active = account.id === selected?.id;
-              return (0, e7.jsxs)(
+              return (0, __CODEX_MUX_JSX__.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -771,12 +790,12 @@ function CodexMuxPluginScope() {
                   "aria-pressed": active,
                   onClick: () => selectAccount(account.id),
                   children: [
-                    (0, e7.jsx)(CodexMuxAccountAvatar, {
+                    (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
                       imageUrl: account.profileImageUrl,
                       label: account.label,
                       className: "size-7",
                     }),
-                    (0, e7.jsx)("span", {
+                    (0, __CODEX_MUX_JSX__.jsx)("span", {
                       children: account.planLabel
                         ? `${account.label} · ${account.planLabel}`
                         : account.label,
@@ -797,6 +816,6 @@ function CodexMuxPluginScope() {
 globalThis.CodexMuxAccountAvatar = CodexMuxAccountAvatar;
 globalThis.codexMuxProfileData = codexMuxProfileData;
 globalThis.CodexMuxProfileAvatarStack = (props) =>
-  (0, e7.jsx)(CodexMuxProfileAvatarStack, props || {});
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileAvatarStack, props || {});
 globalThis.CodexMuxPluginScope = () =>
-  (0, e7.jsx)(CodexMuxPluginScope, {});
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxPluginScope, {});

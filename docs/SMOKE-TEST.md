@@ -1,47 +1,44 @@
-# Signed-app smoke test
+# 実機確認チェックリスト
 
-Complete this checklist on the exact official build recorded in
-`docs/COMPATIBILITY.md` before publishing a release draft. Use a team-backed
-signature and reuse the same Apple team as the previous installed build.
+リリース草稿を公開する前に、`docs/COMPATIBILITY.md` に記録した公式ビルドで以下を確認する。
 
-## Build and identity
+## ビルドと同一性
 
-- Confirm the patcher reports the expected version, build, and ASAR SHA-256.
-- Verify the official `/Applications/ChatGPT.app` is unchanged.
-- Verify the app and every nested Computer Use application with
-  `codesign --verify --deep --strict`.
-- Confirm the installed app and helper report the intended bundle IDs and the
-  same `TeamIdentifier`.
+- パッチャーが想定どおりの公式バージョンと `app.asar` SHA-256 を表示すること。
+- 公式 MSIX パッケージが変更されていないこと (`app.asar` のハッシュが一致)。
+- `resources\codex.exe` が多重化プロキシに、`resources\codex.real.exe` が公式バイナリに
+  なっていること。
+- `resources\codex.exe --help` が公式 CLI のヘルプを表示すること (素通しの確認)。
+- `resources\owl-app.ini` の `UserDataDirectoryName` が独立した名前であること。
+- `app.asar.unpacked\node_modules` に `@worklouder`、`better-sqlite3`、`node-pty` が残ること。
 
-## Accounts and routing
+## 起動とルーティング
 
-- Connect at least two subscriptions and confirm photos, plans, masked emails,
-  pooled usage, and loading states.
-- Start chats until each account has received one; confirm every follow-up stays
-  on its original account.
-- Spoof one depleted account and confirm the thread continues on an account with
-  quota. Spoof all accounts depleted and confirm the combined alert.
-- Open a quota-triggered reset sheet, switch subscriptions, consume a reset, and
-  confirm only the selected account changes.
+- スタートメニューのショートカットからアプリが起動し、ウィンドウが表示されること。
+- `resources\codex.exe ... app-server` が起動し、その子として `codex.real.exe` が
+  アカウントごとに起動すること。
+- `http://127.0.0.1:48123/v1/health` が `{"ok":true}` を返すこと。
+- 制御トークン付きの `/v1/accounts` が接続済みアカウントを返し、日本語ラベルが
+  正しい UTF-8 で返ること。
+- サブスクリプションを 2 つ以上接続し、写真・プラン・マスクされたメール・合算利用量・
+  読み込み中表示を確認すること。
+- 各アカウントに 1 つずつ行き渡るまでチャットを開始し、続きの発言が常に元のアカウントへ
+  送られること。
+- 1 アカウントを枯渇状態にして、別の余力あるアカウントでスレッドが継続すること。
+  全アカウントを枯渇させて、合算アラートが日本語で表示されること。
+- 利用枠のリセットシートを開き、サブスクリプションを切り替えてリセットを消費し、
+  選択したアカウントだけが変化すること。
 
-## Settings and plugins
+## 公式アプリとの共存
 
-- Confirm Profile opens in the combined state, uses 20 px avatar overlap, and
-  toggles between combined and per-account statistics.
-- In Settings → Plugins, select each subscription and verify Apps, MCP status,
-  and MCP OAuth login reflect that account while installed definitions remain
-  shared.
+- 公式 ChatGPT デスクトップアプリを同時に起動しても、双方が独立して動作すること。
+- 公式アプリのプロファイル `%APPDATA%\Codex` が変更されないこと。
 
-## Appshots and Computer Use
+## 再ビルド
 
-- In System Settings, grant Accessibility to Codex Subscription Router and
-  Screen & System Audio Recording to Codex Subscription Router Computer Use.
-  Quit and reopen when macOS asks.
-- Capture an Appshot from the attachment menu and with the Command-key shortcut.
-- Run a Computer Use task and confirm the native helper performs the action
-  without falling back to `osascript`.
-- Rebuild once with the same signing team and confirm existing permissions still
-  work without adding duplicate permission rows.
+- `--force` で再ビルドし、既存インストールが `%USERPROFILE%\.codex-mux\backups` へ
+  退避されること。
+- 再ビルド後もアカウント状態とスレッド所有が維持されること。
 
-Record the tested commit, macOS version, signing team ID, and any deviations in
-the release draft before publishing it.
+確認したコミット、Windows のバージョン、公式アプリのバージョン、逸脱があればその内容を
+リリース草稿に記録してから公開する。

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/b-nnett/codex-subscription-router/internal/protocol"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/protocol"
 )
 
 type Inbound struct {
@@ -140,7 +140,7 @@ func (c *Child) Close() error {
 	if c.command.Process == nil {
 		return nil
 	}
-	return c.command.Process.Signal(os.Interrupt)
+	return terminateProcess(c.command.Process)
 }
 
 func (c *Child) readLoop(stdout io.Reader) {

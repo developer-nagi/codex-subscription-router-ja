@@ -14,9 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/b-nnett/codex-subscription-router/internal/backend"
-	"github.com/b-nnett/codex-subscription-router/internal/protocol"
-	"github.com/b-nnett/codex-subscription-router/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/backend"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/protocol"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
 )
 
 const requestTimeout = 30 * time.Second
@@ -238,7 +238,7 @@ func (m *Multiplexer) routeNewThread(message protocol.Message) {
 	m.publish(Event{
 		Type:      "thread-routed",
 		AccountID: account.ID,
-		Message:   fmt.Sprintf("New chat pinned to %s", account.Label),
+		Message:   fmt.Sprintf("新しいチャットを「%s」に割り当てました", account.Label),
 		Data:      reason,
 	})
 }
@@ -360,7 +360,7 @@ func (m *Multiplexer) failoverTurn(
 	m.publish(Event{
 		Type:      "thread-failed-over",
 		AccountID: fallback.ID,
-		Message:   fmt.Sprintf("Chat continued with %s", fallback.Label),
+		Message:   fmt.Sprintf("チャットを「%s」で継続しました", fallback.Label),
 		Data:      map[string]any{"threadId": threadID, "previousAccountId": sourceAccountID},
 	})
 }
@@ -733,18 +733,30 @@ func (m *Multiplexer) allSubscriptionsDepleted(ctx context.Context, id json.RawM
 }
 
 func allSubscriptionsDepleted(id json.RawMessage, resetsAt *int64) protocol.Message {
-	message := "All connected subscriptions are depleted. Add another subscription or wait for usage to reset."
+	message := "接続中のすべてのサブスクリプションの利用枠を使い切りました。別のサブスクリプションを追加するか、利用枠のリセットをお待ちください。"
 	if resetsAt != nil {
 		reset := time.Unix(*resetsAt, 0).In(time.Local)
 		message = fmt.Sprintf(
-			"All connected subscriptions are depleted. Usage resets on %s.",
-			reset.Format("Monday, 2 January at 3:04 PM"),
+			"接続中のすべてのサブスクリプションの利用枠を使い切りました。%s に利用枠がリセットされます。",
+			formatJapaneseDateTime(reset),
 		)
 	}
 	return protocol.Failure(
 		id,
 		-32026,
 		message,
+	)
+}
+
+func formatJapaneseDateTime(value time.Time) string {
+	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
+	return fmt.Sprintf(
+		"%d月%d日(%s) %02d:%02d",
+		int(value.Month()),
+		value.Day(),
+		weekdays[value.Weekday()],
+		value.Hour(),
+		value.Minute(),
 	)
 }
 

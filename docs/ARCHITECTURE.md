@@ -1,63 +1,65 @@
-# Architecture
+# アーキテクチャ
 
-The independently built desktop uses bundle identifier `app.cdxmux.multi`; its
-Computer Use helper uses `com.cdxmux.sky.CUAService`. Neither identifier is used
-by the official ChatGPT installation. These identifiers and the `.codex-mux`
-state directory remain stable across the product rename so existing macOS
-privacy grants, connected accounts, and sticky thread ownership continue to
-work.
+Codex Subscription Router は、コピーしたアプリの `resources\codex.exe` を小さな Go 製多重化
+プロキシへ置き換え、元のバイナリを同じディレクトリに `codex.real.exe` として保持する。
 
-Codex Subscription Router replaces the copied app's bundled `codex` executable
-with a small Go multiplexer and keeps the original binary beside it as
-`codex.real`.
+独立したデスクトップは `%APPDATA%\Codex Subscription Router` を使い、公式アプリの
+`%APPDATA%\Codex` とは分離される。分離は 2 系統で行う。Electron の `app.setPath('userData')`
+書き換えと、owl シェルの `resources\owl-app.ini` にある `UserDataDirectoryName` の変更である。
+`.codex-mux` 状態ディレクトリは公式アプリと無関係に維持される。
 
-## Request routing
+## リクエストのルーティング
 
-The desktop app opens one JSON-RPC app-server connection to the multiplexer.
-The multiplexer starts one real app-server child for every enabled account,
-each with its own `CODEX_HOME` and `CODEX_SQLITE_HOME`.
+デスクトップは多重化プロキシへ JSON-RPC の app-server 接続を 1 本開く。多重化プロキシは有効な
+アカウントごとに実際の app-server 子プロセスを起動し、それぞれに固有の `CODEX_HOME` と
+`CODEX_SQLITE_HOME` を与える。
 
-New threads are assigned using a quota-urgency score: weekly percentage
-remaining divided by the hours until that account resets. Banked usage resets
-add a capped bonus, while short-window usage, existing pinned-thread count, and
-stable account order break close results. Reset-credit metadata is fetched in
-parallel, cached for five minutes, and treated as neutral when unavailable.
-Once a thread ID is known, `state.json` persists its owner. Requests, responses,
-approvals, and notifications are rewritten only as needed to preserve one
-coherent desktop session.
+新しいスレッドは利用枠の逼迫度で割り当てる。週次の残り割合を、そのアカウントのリセットまでの
+時間で割った値を基本スコアとし、貯まったリセットクレジットに上限付きの加点を与える。短期枠の
+使用量、既存の固定スレッド数、安定したアカウント順で僅差を解消する。リセットクレジットの情報は
+並列に取得し、5 分間キャッシュし、取得できない場合は中立として扱う。
 
-If the owner is depleted, the multiplexer resumes the rollout on an account
-with capacity and updates ownership. Threads do not migrate for ordinary load
-balancing.
+スレッド ID が判明した時点で `state.json` に所有アカウントを永続化する。リクエスト、レスポンス、
+承認、通知は、1 つの一貫したデスクトップセッションを保つために必要な範囲でのみ書き換える。
 
-## Account isolation
+所有アカウントが枯渇した場合は、余力のあるアカウントでロールアウトを再開し所有権を更新する。
+通常の負荷分散のためにスレッドを移動させることはない。
 
-The Primary account uses `~/.codex`. Added accounts use
-`~/.codex-mux/accounts/<id>/codex-home`. Managed configuration is copied from
-the Primary account, excluding credential-store settings and project trust.
-Each isolated account forces file-backed CLI and MCP OAuth credentials.
+## 素通し
 
-## Desktop integration
+多重化プロキシは `app-server` サブコマンドの対話起動のみを横取りする。`app-server daemon`、
+`app-server proxy`、スキーマ生成、その他のサブコマンドは `codex.real.exe` へそのまま渡し、
+終了コードを保持する。実バイナリは `codex.real.exe`、次に `codex.real` の順で解決する。
 
-The patcher extracts `app.asar`, verifies exact upstream anchors, inserts the
-account UI, disables self-update, and repacks the archive with an updated
-integrity hash. The app receives a separate Chromium profile and URL scheme.
+## アカウントの隔離
 
-The copied Computer Use service, Node runtime, and callers are re-signed under
-one Apple team. The helper uses a separate bundle identity and socket, avoiding
-the official app's privacy grants and app-group container.
+プライマリアカウントは `%USERPROFILE%\.codex` を使う。追加したアカウントは
+`%USERPROFILE%\.codex-mux\accounts\<id>\codex-home` を使う。管理対象の構成はプライマリから
+コピーするが、資格情報ストア設定とプロジェクトの信頼設定は除外する。各隔離アカウントは
+CLI と MCP の OAuth 資格情報をファイル保存へ強制する。
 
-## Plugin behavior
+公式のプラグインおよびスキルはユーザープロファイル配下の `.agents` に置かれ、`CODEX_HOME` の
+外にあるため全アカウントで共有される。
 
-Plugin definitions and managed MCP configuration are shared. The Plugins page
-adds an account selector and marks Apps, MCP status, and MCP OAuth requests with
-the selected account ID. The multiplexer removes that private routing marker
-before forwarding the strict RPC request to the chosen child.
+## デスクトップへの組み込み
 
-## Control API
+パッチャーは `app.asar` を展開し、上流のアンカーが一意に一致することを検証し、アカウント UI を
+挿入し、アーカイブを再パックする。Windows ビルドは Electron fuse
+`EnableEmbeddedAsarIntegrityValidation` が無効のため、整合性ハッシュの更新もコード署名も不要である。
+ネイティブモジュール (`@worklouder`、`better-sqlite3`、`node-pty`) は展開状態で保持し、
+再パック後に検証する。
 
-The renderer talks to a loopback-only HTTP service on port 48123. All private
-routes require a random 256-bit token. CORS is limited to the copied app's
-`app://-` origin. The service exposes account metadata, aggregated usage and
-profile data, thread ownership, login/logout actions, and an authenticated SSE
-event stream; it never returns OAuth tokens.
+`CodexSubscriptionRouter.exe` は Go 製のランチャーで、`-H=windowsgui` でビルドされコンソール窓を
+出さない。Electron のメインプロセスが動き出す前に、隔離したプロファイルを `--user-data-dir` として
+渡す。
+
+Computer Use は Windows では `resources\cua_node` の Node ランタイムと `resources\native` の
+ネイティブモジュールを直接使う。macOS のような独立署名ヘルパーアプリやプライバシー許可の
+仕組みは存在しないため、対応するパッチも持たない。
+
+## 制御 API
+
+レンダラーはポート 48123 のループバック限定 HTTP サービスと通信する。非公開経路はすべて
+ランダムな 256 ビットトークンを要求する。CORS はコピーしたアプリの `app://-` オリジンに限定する。
+このサービスはアカウント情報、集計した利用量とプロフィール、スレッド所有、サインインとサインアウト、
+認証付き SSE イベントストリームを提供し、OAuth トークンを返すことはない。

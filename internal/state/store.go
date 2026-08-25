@@ -76,7 +76,7 @@ func Open(root, primaryCodexHome string) (*Store, error) {
 	case errors.Is(err, os.ErrNotExist):
 		store.accounts = []Account{{
 			ID:         "primary",
-			Label:      "Primary",
+			Label:      "プライマリ",
 			CodexHome:  primaryCodexHome,
 			Enabled:    true,
 			Controller: true,
@@ -161,7 +161,7 @@ func (s *Store) AddAccount(label string) (Account, error) {
 
 	label = strings.TrimSpace(label)
 	if label == "" {
-		label = fmt.Sprintf("Subscription %d", len(s.accounts)+1)
+		label = fmt.Sprintf("サブスクリプション %d", len(s.accounts)+1)
 	}
 	id, err := randomID()
 	if err != nil {

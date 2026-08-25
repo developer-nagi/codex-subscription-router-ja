@@ -10,11 +10,11 @@ permissions:
 
 jobs:
   checks:
-    runs-on: macos-latest
+    runs-on: windows-latest
     timeout-minutes: 15
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -24,8 +24,13 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
       - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22.12"
           package-manager-cache: false
@@ -42,11 +47,8 @@ jobs:
       - name: Check Python syntax
         run: npm run check:python
 
-      - name: Check native launcher syntax
-        run: xcrun clang -fsyntax-only -Wall -Wextra native/launcher.c
-
-      - name: Check installer syntax
-        run: npm run check:shell
+      - name: Check PowerShell scripts
+        run: npm run check:powershell
 
       - name: Check release metadata
         run: npm run release:check

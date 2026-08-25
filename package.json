@@ -2,28 +2,33 @@
   "name": "codex-subscription-router-patcher",
   "private": true,
   "version": "0.1.0",
-  "description": "Build tooling for the independent Codex Subscription Router macOS app patch",
+  "description": "Build tooling for the independent Codex Subscription Router Windows app patch",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/b-nnett/codex-subscription-router.git"
+    "url": "git+https://github.com/developer-nagi/codex-subscription-router-ja.git"
   },
-  "homepage": "https://github.com/b-nnett/codex-subscription-router#readme",
+  "homepage": "https://github.com/developer-nagi/codex-subscription-router-ja#readme",
   "bugs": {
-    "url": "https://github.com/b-nnett/codex-subscription-router/issues"
+    "url": "https://github.com/developer-nagi/codex-subscription-router-ja/issues"
   },
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "check": "npm run check:go && npm run check:js && npm run check:python && npm run check:shell",
+    "check": "npm run check:go && npm run check:js && npm run check:python && npm run check:powershell",
     "check:go": "go test ./... && go vet ./...",
     "check:js": "node --check ui/account-menu.js && node --check ui/thread-subscription.js && node --check ui/ui-test-bridge.cjs",
-    "check:python": "python3 -m py_compile scripts/patch_app.py scripts/check_release.py",
-    "check:shell": "bash -n install.sh",
-    "release:check": "python3 scripts/check_release.py"
+    "check:python": "python -m py_compile scripts/patch_app.py scripts/check_release.py scripts/check_upstream.py",
+    "check:powershell": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_powershell.ps1",
+    "release:check": "python scripts/check_release.py",
+    "upstream:check": "python scripts/check_upstream.py"
   },
   "devDependencies": {
-    "@electron/asar": "4.2.1"
-  }
+    "@electron/asar": "4.3.0",
+    "@electron/fuses": "2.1.3"
+  },
+  "os": [
+    "win32"
+  ]
 }

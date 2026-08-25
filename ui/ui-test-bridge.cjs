@@ -35,7 +35,7 @@ async function runAction(window, action, delayMs) {
   window.show();
   window.focus();
   if (action === "profile-toggle") {
-    const toggled = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button[aria-label]')].find(element=>{const label=element.getAttribute('aria-label')||'';return label==='Show combined profile stats'||(label.startsWith('Show ')&&label.endsWith(' profile stats'))}); if(!target)return false; target.click(); return true; })()`);
+    const toggled = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button[aria-label]')].find(element=>{const label=element.getAttribute('aria-label')||'';return label==='合算プロフィール統計を表示'||label.endsWith(' のプロフィール統計を表示')}); if(!target)return false; target.click(); return true; })()`);
     if (!toggled) throw new Error("Could not toggle a subscription profile");
     await new Promise((resolve) => setTimeout(resolve, Math.max(delayMs, 1_500)));
     return;
@@ -43,8 +43,8 @@ async function runAction(window, action, delayMs) {
   if (action === "plugins-select-second") {
     const selected = await window.webContents.executeJavaScript(`(() => {
       const accountButtons=[...document.querySelectorAll('button[aria-pressed]')]
-        .filter(button=>button.textContent?.includes('Subscription'));
-      const target=accountButtons.find(button=>button.textContent?.includes('Subscription 2'))??accountButtons[0];
+        .filter(button=>button.textContent?.includes('サブスクリプション'));
+      const target=accountButtons.find(button=>button.textContent?.includes('サブスクリプション 2'))??accountButtons[0];
       if(!target)return false;
       target.click();
       return true;
@@ -53,7 +53,7 @@ async function runAction(window, action, delayMs) {
     await new Promise((resolve) => setTimeout(resolve, 750));
     const selectionState = await window.webContents.executeJavaScript(`(() => {
       const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('Subscription 2'));
+        .find(button=>button.textContent?.includes('サブスクリプション 2'));
       return {accountId:globalThis.__codexMuxPluginAccountId??null,pressed:target?.getAttribute('aria-pressed')??null};
     })()`);
     if (selectionState.accountId === "primary" || selectionState.pressed !== "true") {
@@ -65,7 +65,7 @@ async function runAction(window, action, delayMs) {
   if (action === "usage-select-second") {
     const selected = await window.webContents.executeJavaScript(`(() => {
       const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('Subscription 2'));
+        .find(button=>button.textContent?.includes('サブスクリプション 2'));
       if(!target)return false;
       target.click();
       return true;
@@ -73,7 +73,7 @@ async function runAction(window, action, delayMs) {
     if (!selected) throw new Error("Could not select a secondary reset subscription");
     const selectionState = await window.webContents.executeJavaScript(`new Promise((resolve) => {
       const read=()=>{const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('Subscription 2'));
+        .find(button=>button.textContent?.includes('サブスクリプション 2'));
         return {accountId:globalThis.__codexMuxResetAccountId??null,pressed:target?.getAttribute('aria-pressed')??null};};
       const deadline=Date.now()+4000;
       const poll=()=>{const state=read();if(state.accountId&&state.accountId!=="primary"&&state.pressed==="true")resolve(state);else if(Date.now()>=deadline)resolve(state);else setTimeout(poll,100);};
@@ -86,21 +86,21 @@ async function runAction(window, action, delayMs) {
     return;
   }
   const settingsSections = {
-    "settings-profile": "Profile",
-    "settings-plugins": "Plugins",
+    "settings-profile": "プロフィール",
+    "settings-plugins": "プラグイン",
     "settings-appshots": "Appshots",
     "settings-computer-use": "Computer use",
   };
   if (Object.hasOwn(settingsSections, action)) {
     const section = settingsSections[action];
     const alreadyInSettings = await window.webContents.executeJavaScript(`(() =>
-      document.body?.innerText?.includes('Back to app')??false
+      (document.body?.innerText?.includes('Back to app')||document.body?.innerText?.includes('アプリに戻る'))??false
     )()`);
     if (!alreadyInSettings) {
-      const settingsPoint = `(() => { const labels=[...document.querySelectorAll('body *')].filter(element=>element.textContent?.trim()==='Settings'); const label=labels.sort((a,b)=>a.children.length-b.children.length)[0]; const target=label?.closest('button,a,[role="menuitem"],[role="button"]')??label; if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`;
+      const settingsPoint = `(() => { const labels=[...document.querySelectorAll('body *')].filter(element=>['Settings','設定'].includes(element.textContent?.trim())); const label=labels.sort((a,b)=>a.children.length-b.children.length)[0]; const target=label?.closest('button,a,[role="menuitem"],[role="button"]')??label; if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`;
       let point = await window.webContents.executeJavaScript(settingsPoint);
       if (!point) {
-        const profilePoint = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
+        const profilePoint = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"],button[aria-label="プロフィールメニューを開く"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
         if (!profilePoint) throw new Error("Could not find the profile-menu button");
         window.webContents.sendInputEvent({ type: "mouseDown", x: profilePoint.x, y: profilePoint.y, button: "left", clickCount: 1 });
         window.webContents.sendInputEvent({ type: "mouseUp", x: profilePoint.x, y: profilePoint.y, button: "left", clickCount: 1 });
@@ -210,12 +210,12 @@ async function runAction(window, action, delayMs) {
         .some(element => element.textContent?.includes('Usage limit resets'))
     )()`);
     if (!usageVisible) {
-      const point = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
+      const point = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"],button[aria-label="プロフィールメニューを開く"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
       if (!point) throw new Error("Could not find the profile-menu button");
       window.webContents.sendInputEvent({ type: "mouseDown", x: point.x, y: point.y, button: "left", clickCount: 1 });
       window.webContents.sendInputEvent({ type: "mouseUp", x: point.x, y: point.y, button: "left", clickCount: 1 });
       await new Promise((resolve) => setTimeout(resolve, 350));
-      const opened = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button,[role="menuitem"]')].find(element=>element.textContent?.includes('Usage remaining')); if(!target)return false; target.click(); return true; })()`);
+      const opened = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button,[role="menuitem"]')].find(element=>element.textContent?.includes('残り利用枠')); if(!target)return false; target.click(); return true; })()`);
       if (!opened) throw new Error("Could not open the Usage sheet");
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
@@ -231,14 +231,14 @@ async function runAction(window, action, delayMs) {
     return;
   }
   if (action === "submit-computer-use") {
-    const isSettings = await window.webContents.executeJavaScript(`document.body?.innerText?.includes('Back to app')??false`);
+    const isSettings = await window.webContents.executeJavaScript(`(document.body?.innerText?.includes('Back to app')||document.body?.innerText?.includes('アプリに戻る'))??false`);
     if (isSettings) {
       const returned = await window.webContents.executeJavaScript(`(() => { const label=[...document.querySelectorAll('body *')].find(element=>element.textContent?.trim()==='Back to app'); const target=label?.closest('button,a,[role="button"]')??label; if(!target)return false; target.click(); return true; })()`);
       if (!returned) throw new Error("Could not leave Settings for the Computer Use test");
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       window = mainWindow() ?? window;
     }
-    const newChatPoint = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="New chat"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
+    const newChatPoint = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="New chat"],button[aria-label="新しいチャット"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
     if (newChatPoint) {
       window.webContents.sendInputEvent({ type: "mouseDown", x: newChatPoint.x, y: newChatPoint.y, button: "left", clickCount: 1 });
       window.webContents.sendInputEvent({ type: "mouseUp", x: newChatPoint.x, y: newChatPoint.y, button: "left", clickCount: 1 });
@@ -301,7 +301,7 @@ async function runAction(window, action, delayMs) {
   const selector = "button,[role='button'],a";
   let script;
   if (action === "profile") {
-    const point = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
+    const point = await window.webContents.executeJavaScript(`(() => { const target=document.querySelector('button[aria-label="Open profile menu"],button[aria-label="プロフィールメニューを開く"]'); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
     if (!point) throw new Error("Could not find the profile-menu button");
     window.webContents.sendInputEvent({ type: "mouseDown", x: point.x, y: point.y, button: "left", clickCount: 1 });
     window.webContents.sendInputEvent({ type: "mouseUp", x: point.x, y: point.y, button: "left", clickCount: 1 });

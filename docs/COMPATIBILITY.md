@@ -1,20 +1,82 @@
-# Compatibility
+# 対応状況
 
-The patcher is intentionally tied to known ChatGPT desktop bundle structures.
-It verifies every modified renderer, main-process, and native binary anchor and
-stops instead of applying a partial patch.
+パッチャーは既知の ChatGPT デスクトップ構成に意図的に強く結び付いている。書き換える
+レンダラー・メインプロセスの全アンカーを検証し、部分的なパッチを当てずに停止する。
 
-## Release 0.1.0
+## リリース 0.1.0 (Windows)
 
-| Component | Tested value |
+| 項目 | 検証値 |
 | --- | --- |
-| Official ChatGPT version | `26.803.61601` |
-| Official bundle build | `6396` |
-| `app.asar` SHA-256 | `d5a44ed9e2f1db5f81dbbe85408aed256f3203c5b16f00817bb9d7cd941343cf` |
-| Architecture | Apple silicon (`arm64`) |
+| OS | Windows 11 x64 |
+| 公式パッケージ | MSIX `OpenAI.Codex` |
+| 公式バージョン | `26.818.8289.0` |
+| `app.asar` SHA-256 | `e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313` |
+| Electron fuse `EnableEmbeddedAsarIntegrityValidation` | 無効 (再パックにハッシュ更新が不要) |
+| 起動される app-server | `resources\codex.exe -c features.code_mode_host=true app-server --analytics-default-enabled` |
 
-A different official version may work when all anchors remain identical, but
-it is unverified. The patcher rejects a version, build, or ASAR hash mismatch by
-default; `--allow-untested-source` is an explicit diagnostic override. Never
-weaken an anchor-count or binary-constant check merely to make a new build
-complete. Review the upstream change and update the patch deliberately.
+同一のアンカーがすべて一致すれば別バージョンでも動作しうるが、未検証である。パッチャーは既定で
+バージョンまたは ASAR ハッシュの不一致を拒否し、`--allow-untested-source` は明示的な診断用の
+上書き手段としてのみ用意している。新しいビルドを通すためにアンカー数やバイナリ定数の検査を
+弱めてはならない。上流の変更を確認し、意図的にパッチを更新すること。
+
+## 検証済みのパッチアンカー
+
+すべて公式ビルド `26.818.8289.0` に対して一意一致することを確認済み。
+
+| 対象 | 目的 |
+| --- | --- |
+| `webview/index.html` の `connect-src` | 制御 API への接続を CSP で許可 |
+| プロフィールメニューコンポーネント | アカウントメニューの注入位置 |
+| `usageItems` スロット | アカウント一覧と合算利用量の描画 |
+| `/wham/profiles/me` 取得 | 合算プロフィール統計へ差し替え |
+| 使用量モーダル | アカウント別リセット状態の初期化 |
+| リセットクレジット取得クエリ | 選択アカウントのリセット残数を取得 |
+| リセットクレジット消費ミューテーション | 選択アカウントのみでリセットを消費 |
+| 使用量ウィンドウ選択 | 選択アカウントの利用枠を表示 |
+| プロフィールメニュー開閉フック (2 箇所) | デバイスコード表示中の誤クローズ防止 |
+| 利用枠切れアラート (4 箇所) | 合算枯渇メッセージへ差し替え |
+| `bootstrap-*.js` の `setPath('userData')` | デスクトッププロファイルの分離 |
+| `main-*.js` の Computer Use 指示 | Windows 向けの厳格な指示へ差し替え |
+
+## 注入 UI の識別子束縛
+
+注入するアカウント UI は、公式ビルド側の minify 済み識別子を参照する。これらの名前は
+ビルドごとに変わるため、`ui/account-menu.js` ではプレースホルダとして書き、パッチャーが
+宣言の存在を確認したうえで置換する。確認できない場合は停止する。
+
+| プレースホルダ | 識別子 | 役割 | 宣言の検出 |
+| --- | --- | --- | --- |
+| `__CODEX_MUX_JSX__` | `u7` | JSX ランタイム | `u7=J()` |
+| `__CODEX_MUX_REACT__` | `nql` | React (フック) | `nql=r(s(),1)` |
+| `__CODEX_MUX_MENU_ITEM__` | `fI` | メニュー行コンポーネント | `function fI(` |
+| `__CODEX_MUX_MENU__` | `vI` | メニュー名前空間 (`Separator`) | `vI={Trigger:` |
+| `__CODEX_MUX_IMAGE_URL__` | `Ija` | プロフィール画像 URL の解決 | `function Ija(` |
+
+アイコンは公式ビルドの識別子に依存せず、注入 UI 内で SVG として定義する。
+
+## macOS 版から未移植の機能
+
+Windows ビルドでは該当画面の実装が変わっており、macOS 版のアンカーおよび注入方式が成立しない。
+現時点では当該パッチを当てていない。無理に近似のアンカーへ当てるより、未適用であることを
+明示する方針をとる。
+
+| 機能 | Windows ビルドでの状況 |
+| --- | --- |
+| 設定 → プラグインのサブスクリプション切り替え | 中央の app-server リクエストブリッジ (macOS の `gm`) が存在せず、`selectedHostId` を用いる別アーキテクチャに変更されている |
+| プロフィール設定のアカウント別アバター選択 | `profile-*.js` の該当アンカー (アバター枠・表示名・プラン章) がいずれも存在せず、画面が再設計されている |
+| スレッド要約の「サブスクリプション」欄 | `local-conversation-thread-*.js` のセクション配列の形が異なり、挿入位置を一意に特定できない |
+| 「残り利用枠」行から使用量モーダルを開く導線 | macOS のモーダルオープナー (`BW`) が存在しない。行は情報表示のみとなる。モーダルがネイティブに開いた際のアカウント別リセット選択は動作する |
+
+いずれも合算プロフィール統計そのものは動作する。プラグインの定義と MCP 構成は全アカウントで
+共有されるため、プラグイン自体は各サブスクリプションから利用できる。切り替え UI のみが未提供である。
+
+`ui/thread-subscription.js` は再導出時に使うため残してある。現在パッチャーからは注入されない。
+
+## 公式プラグイン機構との関係
+
+公式のプラグインは `.codex-plugin/plugin.json` を持つフォルダとして配布され、個人向けの
+マーケットプレイスはユーザープロファイル配下の `.agents/plugins/marketplace.json` に置かれる。
+これらは `CODEX_HOME` の外にあり、隔離アカウント間で自然に共有される。したがって本プロジェクトの
+「プラグイン定義と MCP 構成はプライマリから共有する」という設計と整合し、プラグインの導入自体に
+問題は生じない。アカウントごとに分離されるのは接続 (OAuth) の状態であり、その切り替え UI が
+上表のとおり Windows では未提供である。

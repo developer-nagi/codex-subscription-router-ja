@@ -1,0 +1,24 @@
+{
+  "upstreamRepository": "https://github.com/b-nnett/codex-subscription-router.git",
+  "lastReviewedUpstreamCommit": "b30d97769f2b35facaf22c00365832b62f6b123e",
+  "decisions": [
+    {
+      "ref": "upstream/dependabot/npm_and_yarn/electron/asar-4.3.0",
+      "commit": "951683f64de2f6bd91c5d0006692764e3ec31700",
+      "decision": "適用",
+      "note": "@electron/asar 4.2.1 → 4.3.0。内容のみ適用し、再ビルドで動作を確認した。"
+    },
+    {
+      "ref": "upstream/dependabot/github_actions/actions/checkout-7.0.1",
+      "commit": "3e22ce1605e1b3ce677b483b255b6b04a7734653",
+      "decision": "内容のみ適用",
+      "note": "分岐元 c5c499b が先端より 3 コミット前。merge するとリネームと install.sh 追加を巻き戻すため、SHA の差し替えだけを適用した。"
+    },
+    {
+      "ref": "upstream/dependabot/github_actions/actions/setup-node-7.0.0",
+      "commit": "ca5951b12b9e84cf312be6387dac11597e991e2d",
+      "decision": "内容のみ適用",
+      "note": "分岐元 c5c499b が先端より 3 コミット前。merge 不可。SHA の差し替えだけを適用した。"
+    }
+  ]
+}

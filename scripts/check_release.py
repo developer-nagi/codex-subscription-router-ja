@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import codecs
 import json
 import re
 import subprocess
@@ -21,13 +22,15 @@ REQUIRED_FILES = (
     "README.md",
     "SECURITY.md",
     "VERSION",
-    "install.sh",
+    "install.ps1",
     "docs/ARCHITECTURE.md",
     "docs/COMPATIBILITY.md",
     "docs/E2E-REPORT-0.1.0.md",
     "docs/RELEASING.md",
     "docs/SECURITY-MODEL.md",
     "docs/SMOKE-TEST.md",
+    "docs/UPSTREAM-SYNC.md",
+    "scripts/upstream-sync.json",
     "package-lock.json",
     "package.json",
 )
@@ -53,8 +56,8 @@ FORBIDDEN_TRACKED_SUFFIXES = {
     ".zip",
 }
 FORBIDDEN_TRACKED_NAMES = {".env", "auth.json", "control-token", "state.json"}
-TEXT_SUFFIXES = {"", ".c", ".go", ".json", ".js", ".cjs", ".md", ".py", ".toml", ".yml", ".yaml"}
-MACOS_USER_PREFIX = "/" + "Users" + "/"
+TEXT_SUFFIXES = {"", ".go", ".json", ".js", ".cjs", ".md", ".ps1", ".py", ".toml", ".yml", ".yaml"}
+MACHINE_SPECIFIC_PATH = "C:" + "\\" + "Users" + "\\"
 
 
 def fail(message: str) -> None:
@@ -86,27 +89,28 @@ def main() -> int:
         fail("package-lock.json does not match the declared @electron/asar version")
     if package.get("license") != "MIT":
         fail("package.json license does not match LICENSE")
-    if not ((ROOT / "install.sh").stat().st_mode & 0o111):
-        fail("install.sh is not executable")
+    installer = (ROOT / "install.ps1").read_bytes()
+    if not installer.startswith(codecs.BOM_UTF8):
+        fail("install.ps1 must be UTF-8 with a BOM for Windows PowerShell 5.1")
 
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     dated_heading = rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$"
     if re.search(dated_heading, changelog, re.MULTILINE) is None:
         fail(f"CHANGELOG.md has no dated entry for {version}")
     expected_release_link = (
-        "https://github.com/b-nnett/codex-subscription-router/releases/tag/"
+        "https://github.com/developer-nagi/codex-subscription-router-ja/releases/tag/"
         f"v{version}"
     )
     if expected_release_link not in changelog:
         fail(f"CHANGELOG.md has no release link for {version}")
 
     compatibility = (ROOT / "docs/COMPATIBILITY.md").read_text(encoding="utf-8")
-    if f"## Release {version}" not in compatibility:
+    if f"## リリース {version}" not in compatibility:
         fail(f"docs/COMPATIBILITY.md has no entry for {version}")
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if MACOS_USER_PREFIX in readme:
-        fail("README.md contains a machine-specific macOS user path")
+    if MACHINE_SPECIFIC_PATH in readme:
+        fail("README.md contains a machine-specific Windows user path")
 
     for relative in CURATED_SCREENSHOTS:
         path = ROOT / relative
@@ -131,8 +135,8 @@ def main() -> int:
             fail(f"unexpected tracked file larger than 10 MiB: {relative}")
         if path.is_file() and relative.suffix.lower() in TEXT_SUFFIXES:
             text = path.read_text(encoding="utf-8", errors="replace")
-            if MACOS_USER_PREFIX in text:
-                fail(f"machine-specific macOS user path is tracked: {relative}")
+            if MACHINE_SPECIFIC_PATH in text:
+                fail(f"machine-specific Windows user path is tracked: {relative}")
 
     print(f"release check: v{version} metadata is consistent")
     return 0

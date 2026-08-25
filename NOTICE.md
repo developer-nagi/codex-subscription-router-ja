@@ -1,13 +1,11 @@
-# Notices
+# 告知
 
-This repository contains original patching and multiplexing source. It does not
-include and must not be used to redistribute the official ChatGPT application,
-its ASAR archive, embedded native services, or other OpenAI binaries.
+本リポジトリにはパッチ処理と多重化のオリジナルのソースのみを含む。公式 ChatGPT アプリケーション、
+その ASAR アーカイブ、埋め込みネイティブサービス、その他の OpenAI バイナリを含まず、
+再配布に用いてはならない。
 
-ChatGPT, Codex, OpenAI, and related names and marks belong to OpenAI. Their use
-here identifies compatibility only and does not imply affiliation,
-endorsement, or support.
+ChatGPT、Codex、OpenAI および関連する名称と商標は OpenAI に帰属する。本リポジトリでの使用は
+互換性を示す目的に限られ、提携、推奨、サポートを意味しない。
 
-The build process modifies a local copy of software supplied separately by the
-user. The user is responsible for complying with the licenses and terms that
-apply to that software and to each connected subscription.
+ビルド処理は、利用者が別途入手したソフトウェアのローカルコピーを変更する。そのソフトウェアと
+接続する各サブスクリプションに適用されるライセンスおよび規約の遵守は利用者の責任である。

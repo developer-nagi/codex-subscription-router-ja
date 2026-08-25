@@ -1,22 +1,15 @@
-# Releasing
+# リリース手順
 
-Releases are source-only. Never attach a patched app, ASAR, extracted official
-file, signing certificate, provisioning profile, or account data.
+リリースはソースのみを対象とする。パッチ済みアプリ、ASAR、抽出した公式ファイル、アカウント
+データを添付してはならない。
 
-1. Update `VERSION`, `package.json`, and both version fields in
-   `package-lock.json`.
-2. Move changelog entries from Unreleased into `## [x.y.z] - YYYY-MM-DD`.
-3. Record the tested official app version, build, architecture, and ASAR hash in
-   `docs/COMPATIBILITY.md`.
-4. Run `npm ci --ignore-scripts`, `npm run check`, and
-   `npm run release:check` on macOS.
-5. Complete `docs/SMOKE-TEST.md` with a team-backed signature and record the
-   exact commit, macOS version, and signing team in the release draft.
-6. Review `git diff --check` and confirm no ignored credentials or app bundles
-   are staged.
-7. Configure the protected `release` environment, tag the reviewed commit as
-   `vX.Y.Z`, and push the tag.
+1. `VERSION`、`package.json`、`package-lock.json` の両方のバージョン欄を更新する。
+2. 変更履歴の Unreleased から `## [x.y.z] - YYYY-MM-DD` へ項目を移す。
+3. 検証した公式アプリのバージョンと `app.asar` ハッシュを `docs/COMPATIBILITY.md` に記録する。
+4. Windows 上で `npm ci --ignore-scripts`、`npm run check`、`npm run release:check` を実行する。
+5. `docs/SMOKE-TEST.md` を完了し、対象コミットと Windows のバージョンをリリース草稿に記録する。
+6. `git diff --check` を確認し、資格情報やアプリ本体が混入していないことを確かめる。
+7. 保護された `release` 環境を設定し、確認済みコミットへ `vX.Y.Z` のタグを付けて push する。
 
-The release workflow verifies that the tag matches `VERSION`, repeats all
-checks, and creates a draft GitHub source release with generated notes. Review
-the draft and smoke-test record before publishing it manually.
+リリースワークフローはタグと `VERSION` の一致を検証し、全チェックを再実行し、生成メモ付きの
+ソース限定 GitHub リリース草稿を作成する。草稿と実機確認の記録を確認してから手動で公開する。

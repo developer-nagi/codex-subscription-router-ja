@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/b-nnett/codex-subscription-router/internal/mux"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/mux"
 )
 
 type Server struct {

@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/b-nnett/codex-subscription-router/internal/control"
-	"github.com/b-nnett/codex-subscription-router/internal/mux"
-	"github.com/b-nnett/codex-subscription-router/internal/protocol"
-	"github.com/b-nnett/codex-subscription-router/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/control"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/mux"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/protocol"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
 )
 
 const defaultControlPort = 48123
@@ -131,11 +131,13 @@ func resolveRealExecutable() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve wrapper executable: %w", err)
 	}
-	realExecutable := filepath.Join(filepath.Dir(executable), "codex.real")
-	if _, err := os.Stat(realExecutable); err != nil {
-		return "", fmt.Errorf("find bundled codex.real: %w", err)
+	base := filepath.Join(filepath.Dir(executable), "codex.real")
+	for _, candidate := range []string{base + ".exe", base} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
 	}
-	return realExecutable, nil
+	return "", fmt.Errorf("find bundled codex.real beside %s", executable)
 }
 
 func isInteractiveAppServer(args []string) bool {

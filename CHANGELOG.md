@@ -1,31 +1,62 @@
-# Changelog
+# 変更履歴
 
-All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and
-this project uses [Semantic Versioning](https://semver.org/).
+本プロジェクトは [Keep a Changelog](https://keepachangelog.com/) に従い、
+[セマンティックバージョニング](https://semver.org/lang/ja/) を採用する。
 
 ## [Unreleased]
 
-### Added
+### 変更
 
-- One-command installer with safe source updates, prerequisite checks, signed
-  rebuilds, recoverable upgrades, and automatic launch.
-- Reset-aware routing that prioritizes weekly quota at risk of expiring and
-  gives a bounded boost to subscriptions with banked usage resets.
+- 対象プラットフォームを macOS から **Windows 11 x64** へ全面的に置き換えた。公式アプリは
+  MSIX パッケージ `OpenAI.Codex` を入力として自動検出する。
+- 利用者から見えるすべての文字列を日本語化した。アカウントメニュー、利用枠の表示、
+  サインイン導線、枯渇アラート、既定のアカウントラベルを含む。
+- インストーラを `install.sh` から `install.ps1` へ置き換えた。
+- ランチャーを macOS の C 実装から Go 実装 (`cmd/launcher`) へ置き換えた。
+  `-H=windowsgui` でビルドし、コンソール窓を出さずに隔離プロファイルを渡す。
+- CI とリリースのワークフローを `windows-latest` へ移行し、PowerShell の構文と BOM を
+  検査する `npm run check:powershell` を追加した。
+
+### 追加
+
+- 多重化プロキシが `codex.real.exe` を解決し、Windows で子プロセスを終了できるようになった。
+- 注入 UI がビルド依存の識別子をプレースホルダとして持ち、パッチャーが宣言の存在を検証して
+  束縛するようになった。束縛できない場合は fail-closed で停止する。
+- UI テストブリッジのセレクタを英語・日本語の両方に対応させた。
+- fork 元の変更を選択適用するための運用を整備した。`npm run upstream:check` が未確認の
+  上流コミットを分類し、分岐元が古い上流ブランチを警告する。判断は
+  `scripts/upstream-sync.json` に記録し、手順は `docs/UPSTREAM-SYNC.md` に置いた。
+- 上流の Dependabot が提案する依存更新を個別に取り込んだ。`@electron/asar` 4.2.1 → 4.3.0、
+  `actions/checkout` v6 → v7.0.1、`actions/setup-node` v6 → v7.0.0。上流の該当ブランチは
+  リネーム前のコミットから分岐しているため、マージせず内容のみを適用した。
+
+### 削除
+
+- コード署名、Apple チーム識別子の書き換え、Computer Use ヘルパーの独立署名、
+  `ElectronAsarIntegrity` の更新をすべて削除した。Windows ビルドは Electron fuse
+  `EnableEmbeddedAsarIntegrityValidation` が無効で、これらの処理を必要としない。
+- macOS 専用の `install.sh` と `native/launcher.c` を削除した。
+
+### 未移植
+
+- 設定 → プラグインのサブスクリプション切り替え、プロフィール設定のアカウント別アバター選択、
+  スレッド要約の「サブスクリプション」欄、「残り利用枠」行から使用量モーダルを開く導線。
+  Windows ビルドで該当画面の実装が変わったため。詳細は `docs/COMPATIBILITY.md` を参照。
 
 ## [0.1.0] - 2026-08-15
 
-### Added
+### 追加
 
-- Multi-subscription routing with quota-aware balancing and sticky threads.
-- Account isolation, device-code sign-in, pooled usage, and quota failover.
-- Native account menu, masked emails, plan labels, and profile photos.
-- Combined Profile statistics with per-account selection.
-- Account-scoped Apps and MCP connection state in Settings → Plugins.
-- Per-account rate-limit reset selection and pooled depletion handling.
-- Independently signed Appshots and Computer Use support.
-- Fail-closed upstream compatibility checks and deepest-first nested helper signing.
-- Loopback-only, token-authenticated diagnostic UI states.
-- Source-only CI, draft release automation, security documentation, and smoke tests.
+- 利用枠を考慮した分散とスレッド固定によるマルチサブスクリプションルーティング。
+- アカウントの隔離、デバイスコードサインイン、合算利用量、枯渇時のフェイルオーバー。
+- ネイティブのアカウントメニュー、マスクされたメール、プラン表示、プロフィール写真。
+- アカウント別選択に対応した合算プロフィール統計。
+- 設定 → プラグインでのアカウント別 Apps および MCP 接続状態。
+- アカウント別のレート制限リセット選択と、プール全体の枯渇処理。
+- 独立署名による Appshots と Computer Use 対応。
+- 上流互換性の fail-closed 検査と、深い階層から順に署名するヘルパー処理。
+- ループバック限定でトークン認証された診断用 UI 状態。
+- ソース限定の CI、リリース草稿の自動化、セキュリティ文書、実機確認手順。
 
-[Unreleased]: https://github.com/b-nnett/codex-subscription-router/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/b-nnett/codex-subscription-router/releases/tag/v0.1.0
+[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-ja/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/developer-nagi/codex-subscription-router-ja/releases/tag/v0.1.0

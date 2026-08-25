@@ -6,7 +6,7 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.{go,js,cjs,json,md,py,yml,yaml}]
+[*.{go,js,cjs,json,md,ps1,py,yml,yaml}]
 indent_style = space
 indent_size = 2
 
@@ -15,3 +15,7 @@ indent_style = tab
 
 [Makefile]
 indent_style = tab
+
+[*.ps1]
+# Windows PowerShell 5.1 は BOM 無しの UTF-8 を ANSI として読む。
+charset = utf-8-bom
