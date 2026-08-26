@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -170,6 +172,57 @@ def report_stale_branches(upstream_ref: str) -> None:
     print("  内容だけを個別に適用する。docs/UPSTREAM-SYNC.md を参照。")
 
 
+def upstream_repository(upstream_ref: str) -> str | None:
+    """upstream remote の URL から `owner/repo` を取り出す。"""
+    remote = upstream_ref.split("/", 1)[0]
+    try:
+        url = run_git("remote", "get-url", remote)
+    except subprocess.CalledProcessError:
+        return None
+    match = re.search(r"github\.com[:/]+([^/]+/[^/]+?)(?:\.git)?/?$", url)
+    return match.group(1) if match else None
+
+
+def report_open_pull_requests(upstream_ref: str) -> None:
+    """上流のオープンな PR を分類して示す。
+
+    上流の PR はフォークのブランチから出ていることが多く、`git ls-remote` には
+    現れない。ブランチだけを見ていると変更を取りこぼす。
+    """
+    repository = upstream_repository(upstream_ref)
+    if repository is None:
+        return
+    if shutil.which("gh") is None:
+        print("\nオープンな PR: gh が無いため確認を省略した。")
+        return
+
+    result = subprocess.run(
+        [
+            "gh", "pr", "list", "--repo", repository, "--state", "open",
+            "--limit", "50", "--json", "number,title,headRefName,files",
+        ],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if result.returncode != 0:
+        print("\nオープンな PR: gh の実行に失敗したため確認を省略した。")
+        return
+
+    pulls = json.loads(result.stdout or "[]")
+    if not pulls:
+        print("\nオープンな PR はない。")
+        return
+
+    print(f"\n上流のオープンな PR: {len(pulls)} 件 (未マージのため適用は個別に判断する)\n")
+    for pull in pulls:
+        paths = [entry["path"] for entry in pull.get("files") or []]
+        verdict = classify_commit(paths) if paths else "分類なし"
+        print(f"[{verdict}] #{pull['number']} {pull['title']}")
+        shared = [path for path in paths if classify_path(path) == "取り込み候補"]
+        if shared:
+            print(f"    共有部分: {', '.join(shared[:6])}")
+        print()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -206,6 +259,7 @@ def main() -> int:
 
         report_commits(state, args.upstream)
         report_stale_branches(args.upstream)
+        report_open_pull_requests(args.upstream)
     except subprocess.CalledProcessError as error:
         message = (error.stderr or "").strip() or error.stdout.strip()
         print(f"上流確認に失敗した: {message}", file=sys.stderr)
