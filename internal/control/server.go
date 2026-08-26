@@ -25,6 +25,7 @@ func New(address, token string, multiplexer *mux.Multiplexer, uiTests bool) *Ser
 	server := &Server{token: token, mux: multiplexer, uiTests: uiTests}
 	router := http.NewServeMux()
 	router.HandleFunc("/v1/health", server.health)
+	router.HandleFunc("/v1/accounts/import", server.importAccount)
 	router.HandleFunc("/v1/accounts", server.accounts)
 	router.HandleFunc("/v1/accounts/", server.accountAction)
 	router.HandleFunc("/v1/thread-account", server.threadAccount)
@@ -335,6 +336,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 			response.Header().Set("Access-Control-Allow-Origin", "app://-")
 			response.Header().Set("Vary", "Origin")
 		}
+		response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Codex-Mux-Token")
 		response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		response.Header().Set("Cache-Control", "no-store")
 		response.Header().Set("Referrer-Policy", "no-referrer")

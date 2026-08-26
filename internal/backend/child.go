@@ -143,6 +143,18 @@ func (c *Child) Close() error {
 	return terminateProcess(c.command.Process)
 }
 
+// Wait blocks until the Codex app-server process has exited. Windows keeps
+// directory handles open until then, so a caller that wants to move the
+// account home must wait rather than assume Close took effect.
+func (c *Child) Wait(ctx context.Context) error {
+	select {
+	case <-c.closed:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (c *Child) readLoop(stdout io.Reader) {
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 64*1024), 64*1024*1024)

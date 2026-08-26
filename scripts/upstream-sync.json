@@ -28,15 +28,15 @@
     },
     {
       "ref": "upstream PR #21 (remove-subscription)",
-      "commit": null,
-      "decision": "保留",
-      "note": "サブスクリプション削除。孤立アカウント問題を解決するため価値は高いが、ui/account-menu.js の識別子束縛の読み替えと再ビルド検証が必要。"
+      "commit": "94ac44e",
+      "decision": "適用",
+      "note": "サブスクリプション削除。UI はプレースホルダ束縛と日本語へ書き直した。上流が CORS の Access-Control-Allow-Headers を取りこぼしていたため復元し回帰テストを追加。Windows 向けに子プロセスの終了待ちと rename 再試行を実装。"
     },
     {
       "ref": "upstream PR #20 (codex/import-auth-json)",
-      "commit": null,
-      "decision": "保留",
-      "note": "auth.json インポート。デバイスコード認証の代替。#21 と UI 変更が重なるため後続で扱う。"
+      "commit": "1355c94",
+      "decision": "適用",
+      "note": "auth.json インポート。UI は同様に書き直した。auth.json のパーミッション検査は Windows では成立しないため、保護は ACL が担うことを明記して分岐した。"
     },
     {
       "ref": "upstream PR #14 / #17 / #18",

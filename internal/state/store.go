@@ -158,7 +158,10 @@ func (s *Store) Controller() (Account, bool) {
 func (s *Store) AddAccount(label string) (Account, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.addAccountLocked(label, nil)
+}
 
+func (s *Store) addAccountLocked(label string, authContents []byte) (Account, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
 		label = fmt.Sprintf("サブスクリプション %d", len(s.accounts)+1)
@@ -176,6 +179,11 @@ func (s *Store) AddAccount(label string) (Account, error) {
 	}
 	if err := syncIsolatedConfig(s.primaryCodexHome, codexHome); err != nil {
 		return Account{}, fmt.Errorf("write account config: %w", err)
+	}
+	if authContents != nil {
+		if err := atomicWritePrivate(filepath.Join(codexHome, "auth.json"), authContents); err != nil {
+			return Account{}, fmt.Errorf("write account credentials: %w", err)
+		}
 	}
 
 	account := Account{

@@ -218,6 +218,7 @@ function CodexMuxAccountMenu() {
   const [busy, setBusy] = __CODEX_MUX_REACT__.useState(false);
   const [error, setError] = __CODEX_MUX_REACT__.useState("");
   const [login, setLogin] = __CODEX_MUX_REACT__.useState(null);
+  const [addMethodOpen, setAddMethodOpen] = __CODEX_MUX_REACT__.useState(false);
   const [codeCopied, setCodeCopied] = __CODEX_MUX_REACT__.useState(false);
   const [managing, setManaging] = __CODEX_MUX_REACT__.useState(false);
   const [pendingRemoval, setPendingRemoval] = __CODEX_MUX_REACT__.useState(null);
@@ -273,21 +274,27 @@ function CodexMuxAccountMenu() {
   }, [refresh, loginAccountId]);
 
   __CODEX_MUX_REACT__.useEffect(() => {
-    if (!login && !managing && !pendingRemoval) return;
+    if (!login && !managing && !pendingRemoval && !addMethodOpen) return;
     const allowEscapeDismissal = (event) => {
       if (event.key !== "Escape") return;
       codexMuxLoginActive = false;
       setLogin(null);
       setPendingRemoval(null);
       setManaging(false);
+      setAddMethodOpen(false);
     };
     window.addEventListener("keydown", allowEscapeDismissal, true);
     return () => window.removeEventListener("keydown", allowEscapeDismissal, true);
-  }, [login, managing, pendingRemoval]);
+  }, [login, managing, pendingRemoval, addMethodOpen]);
 
   const connected = accounts.filter(
     (account) => account.connected && account.enabled,
   );
+  // サインインに失敗したアカウントは接続済みにならず通常は表示されない。
+  // 管理モードでは未接続のものも並べる。そうしないと消す手段が無くなる。
+  const listedAccounts = managing
+    ? accounts.filter((account) => account.enabled)
+    : connected;
   const weeklyWindows = connected.map((account) =>
     codexMuxWeeklyWindow(account.rateLimits),
   );
@@ -302,6 +309,8 @@ function CodexMuxAccountMenu() {
   async function addSubscription(event) {
     event.preventDefault();
     if (busy) return;
+    codexMuxLoginActive = true;
+    setAddMethodOpen(false);
     setBusy(true);
     setError("");
     try {
@@ -321,10 +330,83 @@ function CodexMuxAccountMenu() {
       setLogin(pendingLogin);
       await refresh();
     } catch (requestError) {
+      codexMuxLoginActive = false;
       setError(requestError.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  function chooseAddMethod(event) {
+    event.preventDefault();
+    if (busy) return;
+    codexMuxLoginActive = true;
+    setAddMethodOpen(true);
+  }
+
+  function cancelAddMethod(event) {
+    event.preventDefault();
+    if (busy) return;
+    codexMuxLoginActive = false;
+    setAddMethodOpen(false);
+  }
+
+  function importSubscription(event) {
+    event.preventDefault();
+    if (busy) return;
+    codexMuxLoginActive = true;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.hidden = true;
+    document.body.append(input);
+    const cleanup = () => {
+      codexMuxLoginActive = false;
+      input.remove();
+    };
+    input.addEventListener("cancel", cleanup, { once: true });
+    input.addEventListener(
+      "change",
+      async () => {
+        const file = input.files?.[0];
+        if (!file) {
+          cleanup();
+          return;
+        }
+        setBusy(true);
+        setError("");
+        try {
+          if (file.size > 64 * 1024) {
+            throw new Error("auth.json は 64 KB 未満である必要があります。");
+          }
+          const auth = JSON.parse(await file.text());
+          if (auth == null || Array.isArray(auth) || typeof auth !== "object") {
+            throw new Error("auth.json は 1 つの JSON オブジェクトである必要があります。");
+          }
+          await codexMuxRequest("/accounts/import", {
+            method: "POST",
+            body: JSON.stringify({
+              label: `サブスクリプション ${accounts.length + 1}`,
+              auth,
+            }),
+          });
+          await refresh();
+        } catch (requestError) {
+          const message =
+            requestError instanceof SyntaxError
+              ? "auth.json が正しい JSON ではありません。"
+              : requestError.message;
+          await refresh();
+          setError(message);
+        } finally {
+          setBusy(false);
+          setAddMethodOpen(false);
+          cleanup();
+        }
+      },
+      { once: true },
+    );
+    input.click();
   }
 
   async function copyCodeAndContinue(event) {
@@ -418,7 +500,7 @@ function CodexMuxAccountMenu() {
     );
   }
 
-  for (const account of connected) {
+  for (const account of listedAccounts) {
     const weekly = codexMuxWeeklyWindow(account.rateLimits);
     const remaining = weekly == null ? null : Math.max(0, 100 - weekly.usedPercent);
     rows.push(
@@ -431,9 +513,11 @@ function CodexMuxAccountMenu() {
               imageUrl: account.profileImageUrl,
               label: account.label,
             }),
-          SubText: account.email
-            ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
-            : account.planType || "ChatGPTサブスクリプション",
+          SubText: !account.connected
+            ? "サインイン未完了"
+            : account.email
+              ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
+              : account.planType || "ChatGPTサブスクリプション",
           className: "group",
           onSelect:
             managing && !account.controller
@@ -550,17 +634,54 @@ function CodexMuxAccountMenu() {
   }
 
   if (!loading) {
-    rows.push(
-      (0, __CODEX_MUX_JSX__.jsx)(
-        __CODEX_MUX_MENU_ITEM__,
-        {
-          LeftIcon: CodexMuxPlusIcon,
-          onSelect: addSubscription,
-          children: busy ? "サブスクリプションを追加中…" : "サブスクリプションを追加",
-        },
-        "codex-mux-add",
-      ),
-    );
+    if (addMethodOpen) {
+      rows.push(
+        (0, __CODEX_MUX_JSX__.jsx)(
+          __CODEX_MUX_MENU_ITEM__,
+          {
+            LeftIcon: CodexMuxPlusIcon,
+            SubText: "使い捨てのデバイスコードでサインインする",
+            onSelect: addSubscription,
+            children: busy ? "処理中…" : "ChatGPT でサインイン",
+          },
+          "codex-mux-add-device-code",
+        ),
+      );
+      rows.push(
+        (0, __CODEX_MUX_JSX__.jsx)(
+          __CODEX_MUX_MENU_ITEM__,
+          {
+            LeftIcon: CodexMuxCopyIcon,
+            SubText: "既存の Codex ログインファイルを使う",
+            onSelect: importSubscription,
+            children: busy ? "処理中…" : "auth.json をインポート",
+          },
+          "codex-mux-import-auth",
+        ),
+      );
+      rows.push(
+        (0, __CODEX_MUX_JSX__.jsx)(
+          __CODEX_MUX_MENU_ITEM__,
+          {
+            onSelect: cancelAddMethod,
+            children: "キャンセル",
+          },
+          "codex-mux-cancel-add",
+        ),
+      );
+    } else {
+      rows.push(
+        (0, __CODEX_MUX_JSX__.jsx)(
+          __CODEX_MUX_MENU_ITEM__,
+          {
+            LeftIcon: CodexMuxPlusIcon,
+            onSelect: chooseAddMethod,
+            children: "サブスクリプションを追加",
+          },
+          "codex-mux-add",
+        ),
+      );
+    }
   }
   if (!loading && connected.length > 0) {
     rows.push(

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,5 +118,40 @@ func TestDeleteAccountRejectsPrimaryAndBadToken(t *testing.T) {
 	defer denied.Body.Close()
 	if denied.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated delete returned %d, want 401", denied.StatusCode)
+	}
+}
+
+// 注入したレンダラーは全ての非公開経路へ X-Codex-Mux-Token を付ける。CORS の
+// preflight でこのヘッダーを許可しないと、アカウント UI からの通信が全て失敗する。
+// 上流 PR #21 はこのヘッダーを取りこぼしていたため、回帰を検知できるようにする。
+func TestPreflightAllowsControlTokenHeader(t *testing.T) {
+	url, _, _ := newRemoveTestServer(t)
+
+	for _, method := range []string{http.MethodGet, http.MethodDelete} {
+		request, err := http.NewRequest(http.MethodOptions, url+"/v1/accounts", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Origin", "app://-")
+		request.Header.Set("Access-Control-Request-Method", method)
+		request.Header.Set("Access-Control-Request-Headers", "x-codex-mux-token")
+
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+
+		allowedHeaders := response.Header.Get("Access-Control-Allow-Headers")
+		if !strings.Contains(strings.ToLower(allowedHeaders), "x-codex-mux-token") {
+			t.Fatalf("preflight for %s allows headers %q, want the control token header", method, allowedHeaders)
+		}
+		allowedMethods := response.Header.Get("Access-Control-Allow-Methods")
+		if !strings.Contains(allowedMethods, method) {
+			t.Fatalf("preflight allows methods %q, want %s", allowedMethods, method)
+		}
+		if origin := response.Header.Get("Access-Control-Allow-Origin"); origin != "app://-" {
+			t.Fatalf("preflight allows origin %q, want the app origin", origin)
+		}
 	}
 }

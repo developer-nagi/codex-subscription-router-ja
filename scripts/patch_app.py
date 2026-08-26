@@ -191,8 +191,24 @@ def ensure_asar_tool() -> Path:
 
 
 def restrict_to_current_user(path: Path) -> None:
-    """継承 ACL を切り、現在のユーザーだけがアクセスできる状態にする。"""
+    """継承 ACL を切り、現在のユーザーだけがアクセスできる状態にする。
+
+    ACL の変更は環境によっては特権 (SeSecurityPrivilege) を要求され失敗する。
+    `%USERPROFILE%` 配下は既定で当該ユーザーのみに制限されているため、失敗しても
+    導入自体は続行し、強化できなかったことを警告する。
+    """
     target = quote_for_powershell(path)
+    try:
+        _restrict_to_current_user(target)
+    except subprocess.CalledProcessError:
+        print(
+            f"警告: {path} の ACL を強化できなかった。"
+            "%USERPROFILE% 既定の権限のままとなる。",
+            file=sys.stderr,
+        )
+
+
+def _restrict_to_current_user(target: str) -> None:
     powershell(
         f"$path = {target}; "
         "$acl = Get-Acl -LiteralPath $path; "
@@ -214,6 +230,8 @@ def restrict_to_current_user(path: Path) -> None:
 
 
 def load_or_create_token() -> str:
+    # ACL は新規作成時にだけ設定する。既存の状態ルートを書き換えると、公式アプリが
+    # Windows サンドボックス用に追加する権限 (CodexSandboxUsers) を消してしまう。
     created = not DEFAULT_STATE_ROOT.exists()
     DEFAULT_STATE_ROOT.mkdir(parents=True, exist_ok=True)
     if created:

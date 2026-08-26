@@ -133,6 +133,11 @@ func (m *Multiplexer) RemoveAccount(ctx context.Context, id string) error {
 	}
 	if child, ok := m.child(id); ok {
 		_ = child.Close()
+		// Windows は終了していないプロセスが握るディレクトリを移動できない。
+		// Close は終了要求にすぎないため、実際に終了するまで待つ。
+		waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		_ = child.Wait(waitCtx)
+		cancel()
 		m.childrenMu.Lock()
 		delete(m.children, id)
 		m.childrenMu.Unlock()
@@ -163,10 +168,25 @@ func backupAccountHome(root string, account state.Account) error {
 		return fmt.Errorf("create account backup root: %w", err)
 	}
 	destination := filepath.Join(backupRoot, fmt.Sprintf("%s-%d", account.ID, time.Now().Unix()))
-	if err := os.Rename(source, destination); err != nil {
+	if err := renameWithRetry(source, destination); err != nil {
 		return fmt.Errorf("move account home: %w", err)
 	}
 	return nil
+}
+
+// renameWithRetry works around Windows releasing file handles asynchronously
+// after a process exits. A directory that a just-stopped Codex child owned can
+// stay locked briefly, so retry before giving up. On other platforms the first
+// attempt succeeds and the loop costs nothing.
+func renameWithRetry(source, destination string) error {
+	var err error
+	for attempt := 0; attempt < 10; attempt++ {
+		if err = os.Rename(source, destination); err == nil {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return err
 }
 
 func (m *Multiplexer) ThreadAccount(ctx context.Context, threadID string) (AccountSnapshot, error) {
