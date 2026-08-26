@@ -37,10 +37,6 @@ REQUIRED_FILES = (
 CURATED_SCREENSHOTS = (
     "screenshots/account-menu.png",
     "screenshots/combined-profile-20px.png",
-    "screenshots/plugin-account-picker-primary-final.png",
-    "screenshots/plugin-account-picker-secondary-final.png",
-    "screenshots/quota-all-depleted.png",
-    "screenshots/rate-limit-reset-accounts.png",
 )
 FORBIDDEN_TRACKED_SUFFIXES = {
     ".asar",
