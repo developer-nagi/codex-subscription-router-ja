@@ -15,7 +15,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$RepositoryUrl = 'https://github.com/developer-nagi/codex-subscription-router-ja.git'
+$RepositoryUrl = 'https://github.com/developer-nagi/codex-subscription-router-win.git'
 $DefaultSourceDirectory = Join-Path $env:USERPROFILE '.codex-subscription-router\source'
 $DestinationApp = Join-Path $env:LOCALAPPDATA 'Programs\Codex Subscription Router'
 $PackageName = 'OpenAI.Codex'

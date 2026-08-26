@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
 
 type usageBucket struct {

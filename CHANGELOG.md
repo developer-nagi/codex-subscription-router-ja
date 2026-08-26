@@ -81,5 +81,5 @@
 - ループバック限定でトークン認証された診断用 UI 状態。
 - ソース限定の CI、リリース草稿の自動化、セキュリティ文書、実機確認手順。
 
-[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-ja/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/developer-nagi/codex-subscription-router-ja/releases/tag/v0.1.0
+[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.1.0

@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/developer-nagi/codex-subscription-router-ja.git"
+    "url": "git+https://github.com/developer-nagi/codex-subscription-router-win.git"
   },
-  "homepage": "https://github.com/developer-nagi/codex-subscription-router-ja#readme",
+  "homepage": "https://github.com/developer-nagi/codex-subscription-router-win#readme",
   "bugs": {
-    "url": "https://github.com/developer-nagi/codex-subscription-router-ja/issues"
+    "url": "https://github.com/developer-nagi/codex-subscription-router-win/issues"
   },
   "engines": {
     "node": ">=22.12"

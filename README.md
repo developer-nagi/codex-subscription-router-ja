@@ -104,7 +104,7 @@ PowerShell で次を実行する。ソースの取得・更新、固定された
 起動までを 1 コマンドで行う。
 
 ```powershell
-irm https://raw.githubusercontent.com/developer-nagi/codex-subscription-router-ja/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/developer-nagi/codex-subscription-router-win/main/install.ps1 | iex
 ```
 
 インストーラはソースを `%USERPROFILE%\.codex-subscription-router\source` に保持する。既存の
@@ -117,8 +117,8 @@ irm https://raw.githubusercontent.com/developer-nagi/codex-subscription-router-j
 ### クローンからインストール
 
 ```powershell
-git clone https://github.com/developer-nagi/codex-subscription-router-ja.git
-cd codex-subscription-router-ja
+git clone https://github.com/developer-nagi/codex-subscription-router-win.git
+cd codex-subscription-router-win
 npm ci --ignore-scripts
 python scripts/patch_app.py
 ```

@@ -52,7 +52,7 @@ git cherry-pick -n <commit>
 衝突したら、本 fork 側の Windows 対応と日本語化を保ったまま解決する。特に次は
 巻き戻さないよう注意する。
 
-- Go のモジュールパス (`github.com/developer-nagi/codex-subscription-router-ja`)
+- Go のモジュールパス (`github.com/developer-nagi/codex-subscription-router-win`)
 - 日本語のユーザー向け文字列 (`internal/mux/mux.go`、`internal/state/store.go`)
 - Windows 固有の分岐 (`internal/backend/terminate_windows.go`、`resolveRealExecutable`)
 

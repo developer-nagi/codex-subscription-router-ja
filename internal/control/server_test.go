@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/mux"
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/mux"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
 
 func newRemoveTestServer(t *testing.T) (url string, token string, accountID string) {

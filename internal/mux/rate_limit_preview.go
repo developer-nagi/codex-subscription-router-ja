@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/protocol"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/protocol"
 )
 
 type RateLimitPreviewMode string

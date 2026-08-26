@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
 
 func (s *Server) importAccount(response http.ResponseWriter, request *http.Request) {

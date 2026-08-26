@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/control"
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/mux"
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/protocol"
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/control"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/mux"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/protocol"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
 
 const defaultControlPort = 48123

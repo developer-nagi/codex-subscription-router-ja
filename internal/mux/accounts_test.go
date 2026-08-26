@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/backend"
-	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/backend"
+	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
 
 func TestPlanLabel(t *testing.T) {
