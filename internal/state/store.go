@@ -217,6 +217,34 @@ func (s *Store) UpdateAccount(id string, label *string, enabled *bool) (Account,
 	return Account{}, fmt.Errorf("account %q not found", id)
 }
 
+// RemoveAccount deletes a non-controller account from routing state and
+// drops every thread assignment it owned. The isolated Codex home is not
+// deleted here; the caller decides its fate so a removal can stay recoverable.
+func (s *Store) RemoveAccount(id string) (Account, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.accounts {
+		if s.accounts[index].ID != id {
+			continue
+		}
+		if s.accounts[index].Controller || samePath(s.accounts[index].CodexHome, s.primaryCodexHome) {
+			return Account{}, errors.New("プライマリのサブスクリプションは削除できません")
+		}
+		removed := s.accounts[index]
+		s.accounts = slices.Delete(s.accounts, index, index+1)
+		for threadID, owner := range s.owners {
+			if owner == id {
+				delete(s.owners, threadID)
+			}
+		}
+		if err := s.saveLocked(); err != nil {
+			return Account{}, err
+		}
+		return removed, nil
+	}
+	return Account{}, fmt.Errorf("account %q not found", id)
+}
+
 func (s *Store) ThreadOwner(threadID string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

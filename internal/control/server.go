@@ -217,6 +217,14 @@ func (s *Server) accountAction(response http.ResponseWriter, request *http.Reque
 		writeJSON(response, http.StatusOK, map[string]any{"account": account})
 		return
 	}
+	if len(parts) == 1 && request.Method == http.MethodDelete {
+		if err := s.mux.RemoveAccount(ctx, accountID); err != nil {
+			writeJSON(response, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(response, http.StatusOK, map[string]any{"ok": true})
+		return
+	}
 	if len(parts) == 2 && parts[1] == "rate-limit-resets" && request.Method == http.MethodGet {
 		result, err := s.mux.RateLimitResetCredits(ctx, accountID)
 		if err != nil {
@@ -327,8 +335,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 			response.Header().Set("Access-Control-Allow-Origin", "app://-")
 			response.Header().Set("Vary", "Origin")
 		}
-		response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Codex-Mux-Token")
-		response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+		response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		response.Header().Set("Cache-Control", "no-store")
 		response.Header().Set("Referrer-Policy", "no-referrer")
 		response.Header().Set("X-Content-Type-Options", "nosniff")

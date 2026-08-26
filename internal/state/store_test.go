@@ -172,3 +172,56 @@ func TestUpdateAccountPreservesController(t *testing.T) {
 		t.Fatalf("unexpected updated account: %#v", account)
 	}
 }
+
+func TestRemoveAccountClearsOwnershipAndPersists(t *testing.T) {
+	root := t.TempDir()
+	primaryHome := filepath.Join(root, "primary")
+	store, err := Open(filepath.Join(root, "mux"), primaryHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, err := store.AddAccount("Work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetThreadOwner("thread-owned", added.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetThreadOwner("thread-primary", "primary"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.RemoveAccount("primary"); err == nil {
+		t.Fatal("removing the controller account must fail")
+	}
+
+	removed, err := store.RemoveAccount(added.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed.ID != added.ID {
+		t.Fatalf("unexpected removed account: %#v", removed)
+	}
+	if _, err := store.RemoveAccount(added.ID); err == nil {
+		t.Fatal("removing an already removed account must fail")
+	}
+	for _, account := range store.Accounts() {
+		if account.ID == added.ID {
+			t.Fatal("removed account is still present in state")
+		}
+	}
+	if owner, ok := store.ThreadOwner("thread-owned"); ok {
+		t.Fatalf("thread owned by the removed account kept its owner %q", owner)
+	}
+	if owner, ok := store.ThreadOwner("thread-primary"); !ok || owner != "primary" {
+		t.Fatalf("unrelated thread ownership was disturbed: owner=%q ok=%v", owner, ok)
+	}
+
+	reopened, err := Open(filepath.Join(root, "mux"), primaryHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := reopened.Account(added.ID); ok {
+		t.Fatal("removed account reappeared after reopening the store")
+	}
+}

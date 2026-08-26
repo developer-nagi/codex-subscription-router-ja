@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -114,6 +116,57 @@ func (m *Multiplexer) UpdateAccount(ctx context.Context, id string, label *strin
 		return AccountSnapshot{}, err
 	}
 	return m.accountSnapshot(ctx, id)
+}
+
+// RemoveAccount deletes a subscription from the routing pool: its app-server
+// child is stopped, thread ownership is cleared, and the isolated Codex home
+// is moved into a timestamped backup so the removal stays recoverable. The
+// Primary subscription cannot be removed. Order matters: every step before
+// the state commit is reversible, and the commit is what makes it permanent.
+func (m *Multiplexer) RemoveAccount(ctx context.Context, id string) error {
+	account, ok := m.store.Account(id)
+	if !ok {
+		return fmt.Errorf("account %q not found", id)
+	}
+	if account.Controller {
+		return errors.New("プライマリのサブスクリプションは削除できません")
+	}
+	if child, ok := m.child(id); ok {
+		_ = child.Close()
+		m.childrenMu.Lock()
+		delete(m.children, id)
+		m.childrenMu.Unlock()
+	}
+	if err := backupAccountHome(m.store.Root(), account); err != nil {
+		return fmt.Errorf("back up subscription home: %w", err)
+	}
+	if _, err := m.store.RemoveAccount(id); err != nil {
+		return err
+	}
+	m.publish(Event{Type: "account-removed", AccountID: id, Message: account.Label})
+	return nil
+}
+
+// backupAccountHome moves accounts/<id> (the isolated Codex home and any
+// sibling state) under backups/accounts/<id>-<unix-seconds>. Missing
+// directories are ignored: nothing was created, so nothing is lost.
+func backupAccountHome(root string, account state.Account) error {
+	source := filepath.Dir(account.CodexHome)
+	if _, err := os.Stat(source); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	backupRoot := filepath.Join(root, "backups", "accounts")
+	if err := os.MkdirAll(backupRoot, 0o700); err != nil {
+		return fmt.Errorf("create account backup root: %w", err)
+	}
+	destination := filepath.Join(backupRoot, fmt.Sprintf("%s-%d", account.ID, time.Now().Unix()))
+	if err := os.Rename(source, destination); err != nil {
+		return fmt.Errorf("move account home: %w", err)
+	}
+	return nil
 }
 
 func (m *Multiplexer) ThreadAccount(ctx context.Context, threadID string) (AccountSnapshot, error) {

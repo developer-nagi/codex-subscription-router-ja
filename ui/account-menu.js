@@ -219,6 +219,9 @@ function CodexMuxAccountMenu() {
   const [error, setError] = __CODEX_MUX_REACT__.useState("");
   const [login, setLogin] = __CODEX_MUX_REACT__.useState(null);
   const [codeCopied, setCodeCopied] = __CODEX_MUX_REACT__.useState(false);
+  const [managing, setManaging] = __CODEX_MUX_REACT__.useState(false);
+  const [pendingRemoval, setPendingRemoval] = __CODEX_MUX_REACT__.useState(null);
+  const [removalError, setRemovalError] = __CODEX_MUX_REACT__.useState("");
   const loginAccountId = login?.accountId || null;
 
   const refresh = __CODEX_MUX_REACT__.useCallback(async () => {
@@ -253,6 +256,7 @@ function CodexMuxAccountMenu() {
           setLogin(null);
         }
         if (payload.type === "account-updated") refresh();
+        if (payload.type === "account-removed") refresh();
       } catch {}
     };
     const warmupTimer = setTimeout(refresh, 2_000);
@@ -269,15 +273,17 @@ function CodexMuxAccountMenu() {
   }, [refresh, loginAccountId]);
 
   __CODEX_MUX_REACT__.useEffect(() => {
-    if (!login) return;
+    if (!login && !managing && !pendingRemoval) return;
     const allowEscapeDismissal = (event) => {
       if (event.key !== "Escape") return;
       codexMuxLoginActive = false;
       setLogin(null);
+      setPendingRemoval(null);
+      setManaging(false);
     };
     window.addEventListener("keydown", allowEscapeDismissal, true);
     return () => window.removeEventListener("keydown", allowEscapeDismissal, true);
-  }, [login]);
+  }, [login, managing, pendingRemoval]);
 
   const connected = accounts.filter(
     (account) => account.connected && account.enabled,
@@ -350,6 +356,40 @@ function CodexMuxAccountMenu() {
     }
   }
 
+  function startManaging(event) {
+    event.preventDefault();
+    setPendingRemoval(null);
+    setRemovalError("");
+    setManaging(true);
+  }
+
+  function exitManaging(event) {
+    event.preventDefault();
+    setPendingRemoval(null);
+    setRemovalError("");
+    setManaging(false);
+  }
+
+  async function removeSubscription(event) {
+    event.preventDefault();
+    if (busy || !pendingRemoval) return;
+    setBusy(true);
+    setRemovalError("");
+    try {
+      await codexMuxRequest(
+        `/accounts/${encodeURIComponent(pendingRemoval.id)}`,
+        { method: "DELETE" },
+      );
+      setPendingRemoval(null);
+      setManaging(false);
+      await refresh();
+    } catch (requestError) {
+      setRemovalError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const rows = [];
   rows.push(
     (0, __CODEX_MUX_JSX__.jsx)(
@@ -395,15 +435,80 @@ function CodexMuxAccountMenu() {
             ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
             : account.planType || "ChatGPTサブスクリプション",
           className: "group",
-          rightIcon: (0, __CODEX_MUX_JSX__.jsx)("span", {
-            className: "text-token-description-foreground tabular-nums",
-            children: remaining == null ? "–" : `${Math.round(remaining)}%`,
-          }),
+          onSelect:
+            managing && !account.controller
+              ? () => setPendingRemoval(account)
+              : undefined,
+          rightIcon: managing
+            ? (0, __CODEX_MUX_JSX__.jsx)("span", {
+                className: [
+                  "text-xs font-medium",
+                  account.controller
+                    ? "text-token-description-foreground"
+                    : "text-token-text-primary",
+                ].join(" "),
+                children: account.controller ? "プライマリ" : "削除",
+              })
+            : (0, __CODEX_MUX_JSX__.jsx)("span", {
+                className: "text-token-description-foreground tabular-nums",
+                children: remaining == null ? "–" : `${Math.round(remaining)}%`,
+              }),
           children: account.planLabel
             ? `${account.label} · ${account.planLabel}`
             : account.label,
         },
         `codex-mux-account-${account.id}`,
+      ),
+    );
+  }
+
+  if (pendingRemoval) {
+    const pendingLabel = pendingRemoval.planLabel
+      ? `${pendingRemoval.label} · ${pendingRemoval.planLabel}`
+      : pendingRemoval.label;
+    rows.push(
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
+        {
+          LeftIcon: CodexMuxAlertIcon,
+          SubText:
+            "チャットはただちにこのアプリから消えます。アカウントのデータはローカルのバックアップに残ります",
+          tone: "danger",
+          allowWrap: true,
+          subTextAllowWrap: true,
+          onSelect: removeSubscription,
+          children: busy
+            ? "削除中…"
+            : `「${pendingLabel}」をこの PC から削除`,
+        },
+        "codex-mux-remove-confirm",
+      ),
+    );
+    rows.push(
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
+        {
+          onSelect: () => setPendingRemoval(null),
+          children: "キャンセル",
+        },
+        "codex-mux-remove-cancel",
+      ),
+    );
+  }
+
+  if (removalError) {
+    rows.push(
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
+        {
+          LeftIcon: CodexMuxAlertIcon,
+          SubText: removalError,
+          tone: "danger",
+          allowWrap: true,
+          subTextAllowWrap: true,
+          children: "サブスクリプションを削除できません",
+        },
+        "codex-mux-remove-error",
       ),
     );
   }
@@ -454,6 +559,18 @@ function CodexMuxAccountMenu() {
           children: busy ? "サブスクリプションを追加中…" : "サブスクリプションを追加",
         },
         "codex-mux-add",
+      ),
+    );
+  }
+  if (!loading && connected.length > 0) {
+    rows.push(
+      (0, __CODEX_MUX_JSX__.jsx)(
+        __CODEX_MUX_MENU_ITEM__,
+        {
+          onSelect: managing ? exitManaging : startManaging,
+          children: managing ? "完了" : "サブスクリプションを管理",
+        },
+        managing ? "codex-mux-manage-done" : "codex-mux-manage",
       ),
     );
   }

@@ -1,8 +1,15 @@
 package mux
 
 import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/backend"
+	"github.com/developer-nagi/codex-subscription-router-ja/internal/state"
 )
 
 func TestPlanLabel(t *testing.T) {
@@ -143,10 +150,61 @@ func TestRouteUrgencyFallsBackToWeeklyUtilization(t *testing.T) {
 	lessUsed := routeUrgencyScore(now, &RateLimitWindow{
 		UsedPercent: 20, WindowDurationMins: &weeklyMinutes,
 	}, resetCreditMetadata{})
+
 	moreUsed := routeUrgencyScore(now, &RateLimitWindow{
 		UsedPercent: 80, WindowDurationMins: &weeklyMinutes,
 	}, resetCreditMetadata{})
 	if lessUsed <= moreUsed {
 		t.Fatalf("fallback should prefer the less-used account: less=%f more=%f", lessUsed, moreUsed)
+	}
+}
+
+func TestRemoveAccountBacksUpHomeAndPublishesEvent(t *testing.T) {
+	root := t.TempDir()
+	store, err := state.Open(filepath.Join(root, "mux"), filepath.Join(root, "primary"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, err := store.AddAccount("Work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := make(chan Event, 4)
+	multiplexer := &Multiplexer{
+		store:    store,
+		children: make(map[string]*backend.Child),
+		events:   map[chan Event]struct{}{events: {}},
+		now:      time.Now,
+	}
+
+	if err := multiplexer.RemoveAccount(context.Background(), "primary"); err == nil {
+		t.Fatal("removing the Primary subscription must fail")
+	}
+	if err := multiplexer.RemoveAccount(context.Background(), added.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := store.Account(added.ID); ok {
+		t.Fatal("removed account is still routable")
+	}
+	if _, err := os.Stat(added.CodexHome); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("isolated home was not moved out: %v", err)
+	}
+	backups, err := filepath.Glob(filepath.Join(store.Root(), "backups", "accounts", added.ID+"-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("expected exactly one account backup, found %d", len(backups))
+	}
+	if _, err := os.Stat(filepath.Join(backups[0], "codex-home", "config.toml")); err != nil {
+		t.Fatalf("backup is missing the isolated config: %v", err)
+	}
+	select {
+	case event := <-events:
+		if event.Type != "account-removed" || event.AccountID != added.ID {
+			t.Fatalf("unexpected removal event: %#v", event)
+		}
+	default:
+		t.Fatal("no account-removed event was published")
 	}
 }
