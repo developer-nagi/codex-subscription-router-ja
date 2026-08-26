@@ -1,100 +1,100 @@
 # Codex Subscription Router
 
-![マルチサブスクリプションのアカウントメニュー](screenshots/account-menu.png)
+![Multi-subscription account menu](screenshots/account-menu.png)
 
-複数の ChatGPT サブスクリプションを、1 つの独立した Windows デスクトップアプリから使う。
+Use several ChatGPT subscriptions from one independent Windows desktop app.
 
-Codex Subscription Router は公式 ChatGPT デスクトップアプリのローカルなパッチ済みコピーを作成し、
-新しいチャットを接続済みのサブスクリプションへ分散させる。各スレッドは 1 つのサブスクリプションに
-固定されるため、続きの発言でも会話コンテキストが維持され、アカウント単位のキャッシュが効く。
+Codex Subscription Router creates a locally patched copy of the official ChatGPT desktop
+app and spreads new chats across the connected subscriptions. Each thread stays pinned to
+one subscription, so follow-up turns keep their conversation context and benefit from
+account-level caching.
 
-公式アプリはビルド入力として読み取るだけで、決して変更しない。このリポジトリにはソースコードと
-ビルドツールのみが含まれ、OpenAI のバイナリや配布可能なアプリは含まれない。
+The official app is read as build input and never modified. This repository contains
+source code and build tooling only — no OpenAI binaries and no distributable app.
 
-本リポジトリは [b-nnett/codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
-の fork である。オリジナルは macOS 版として設計・実装されており、本 fork はそれを Windows 版へ
-移植し、日本語化したものである。設計の中核は上流の成果であり、詳しくは [謝辞](#謝辞) を参照。
-
-> This repository is a Windows port of
-> [b-nnett/codex-subscription-router](https://github.com/b-nnett/codex-subscription-router),
-> with its interface localized into Japanese. The core design is upstream's work —
-> see [Acknowledgements](#acknowledgements). On macOS, use the original instead.
+This repository is a fork of
+[b-nnett/codex-subscription-router](https://github.com/b-nnett/codex-subscription-router).
+The original was designed and built for macOS; this fork ports it to Windows. The core
+design is upstream's work — see [Acknowledgements](#acknowledgements). On macOS, use the
+original instead.
 
 > [!WARNING]
-> 本プロジェクトは非公式で、公式ビルドのバージョンに強く依存する。OpenAI とは無関係であり、
-> サポートも受けられない。利用前にソースを確認し、接続する各サブスクリプションに適用される
-> 規約に適合するかを自分で判断すること。
+> This is an unofficial project and is tightly coupled to a specific official build. It
+> is not affiliated with OpenAI and carries no support. Review the source before using
+> it, and judge for yourself whether your use complies with the terms governing each
+> connected subscription.
 
-![合算プロフィール](screenshots/combined-profile-20px.png)
+![Combined profile](screenshots/combined-profile-20px.png)
 
-## 主な機能
+## Highlights
 
-- **利用枠を考慮したルーティング。** 新しいチャットは、先に失効する週次利用枠を優先し、
-  貯まっているリセットクレジットに上限付きの加点を与えて割り当てる。
-- **スレッドの固定。** 一度割り当てたスレッドは、その枠を使い切らない限り常に同じ
-  サブスクリプションへ送られる。
-- **自動フェイルオーバー。** 枠を使い切ったスレッドは、余力のある別アカウントで継続する。
-  プール全体が空の場合は、まとめた 1 件のアラートを表示する。
-- **ネイティブなアカウント管理。** 既存のプロフィールメニューに、合算利用量・プロフィール写真・
-  プラン名・マスクされたメールアドレス・デバイスコードサインインを表示する。
-- **アカウント別のリセット。** ネイティブのレート制限シートで、選択したサブスクリプションの
-  リセットクレジットを表示・消費する。
-- **合算プロフィール。** プロフィール設定の統計を全サブスクリプションで合算し、接続中の
-  アカウントを重ねて表示する。
-- **サブスクリプションの追加と削除。** デバイスコードでのサインインに加え、既存の
-  `auth.json` をインポートして追加できる。削除したアカウントのデータは復元可能な
-  バックアップへ退避する。
-- **日本語 UI。** 注入する UI はすべて日本語。アプリ本体も Windows の表示言語に従い日本語で動作する。
+- **Quota-aware routing.** New chats favour the weekly allowance that expires sooner,
+  with a bounded boost for accounts holding banked usage resets.
+- **Sticky threads.** Once assigned, a thread returns to the same subscription unless
+  that subscription is depleted.
+- **Automatic failover.** A depleted thread continues through another account with
+  capacity. When the whole pool is empty, one combined alert is shown.
+- **Native account management.** The existing profile menu shows pooled usage, profile
+  photos, plan names, masked email addresses, and device-code sign-in.
+- **Per-account resets.** The native rate-limit sheet shows and consumes reset credits
+  for the selected subscription.
+- **Combined profile.** Profile statistics are pooled across every subscription, with the
+  connected accounts shown as overlapping avatars.
+- **Adding and removing subscriptions.** Connect with a device code or by importing an
+  existing `auth.json`. A removed account's data moves to a recoverable backup.
+- **Localized interface.** The injected UI ships in all 64 languages the official app
+  supports and follows the display language, exactly as the native strings do.
 
-## 仕組み
+## How it works
 
-パッチ済みデスクトップは従来どおり app-server 接続を 1 本だけ開く。小さな Go 製の多重化プロキシが
-その接続をアカウントごとの公式 Codex 子プロセスへ分配する。各子プロセスは隔離された Codex ホームを
-持ち、多重化プロキシがスレッドごとの所有アカウントを記録する。
+The patched desktop still opens a single app-server connection. A small Go multiplexer
+fans that connection out to one official Codex child per account. Each child has an
+isolated Codex home, and the multiplexer records the owner of every thread.
 
 ```text
 Codex Subscription Router (CodexSubscriptionRouter.exe)
         │
-        │ app-server 接続 1 本
+        │ one app-server connection
         ▼
-    resources\codex.exe  (Go 多重化プロキシ)
-    ├── プライマリ            → %USERPROFILE%\.codex
-    ├── サブスクリプション 2  → 隔離された Codex ホーム
-    └── サブスクリプション 3  → 隔離された Codex ホーム
+    resources\codex.exe  (Go multiplexer)
+    ├── Primary          → %USERPROFILE%\.codex
+    ├── Subscription 2   → isolated Codex home
+    └── Subscription 3   → isolated Codex home
              │
-             └── スレッド ID → 所有アカウントを永続化
+             └── thread ID → persistent account owner
 ```
 
-公式の `codex.exe` は `codex.real.exe` として同じディレクトリに保持され、多重化プロキシから
-子プロセスとして起動される。`app-server` 以外の呼び出しはそのまま素通しする。
+The official `codex.exe` is kept beside it as `codex.real.exe` and started as a child of
+the multiplexer. Anything that is not an `app-server` invocation is passed straight
+through.
 
-詳細は [アーキテクチャ](docs/ARCHITECTURE.md) と
-[セキュリティモデル](docs/SECURITY-MODEL.md) を参照。
+Read [the architecture](docs/ARCHITECTURE.md) and
+[the security model](docs/SECURITY-MODEL.md) for detail.
 
-## 対応環境
+## Compatibility
 
-| 項目 | 対応値 |
+| Component | Supported value |
 | --- | --- |
 | OS | Windows 11 (x64) |
-| 公式 ChatGPT デスクトップ | MSIX パッケージ `OpenAI.Codex` `26.818.8289.0` |
-| Go | 1.26 以上 |
-| Node.js | 22.12 以上 |
-| Python | 3.11 以上 |
+| Official ChatGPT desktop | MSIX package `OpenAI.Codex` `26.818.8289.0` |
+| Go | 1.26 or newer |
+| Node.js | 22.12 or newer |
+| Python | 3.11 or newer |
 
-パッチャーは公式アプリのバージョンと `app.asar` の SHA-256、および書き換える全アンカーを
-事前に検証する。未知の上流ビルドは既定で拒否し、部分的なパッチを当てない。記録済みのハッシュは
-[対応状況](docs/COMPATIBILITY.md) を参照。
+The patcher verifies the official version, the `app.asar` SHA-256, and every anchor it
+rewrites. An unknown upstream build is rejected by default rather than being partially
+patched. The recorded hash is in [Compatibility](docs/COMPATIBILITY.md).
 
-Windows 版は macOS 版と異なり、コード署名も ASAR 整合性ハッシュの更新も不要である。公式ビルドの
-Electron fuse `EnableEmbeddedAsarIntegrityValidation` が無効化されているため、再パックした
-`app.asar` はそのまま読み込まれる。
+Unlike the macOS build, the Windows build needs neither code signing nor an ASAR
+integrity hash update. The official build ships the Electron fuse
+`EnableEmbeddedAsarIntegrityValidation` disabled, so a repacked `app.asar` loads as-is.
 
-## 前提
+## Requirements
 
-- Microsoft Store 版の公式 ChatGPT デスクトップアプリ
-- Go 1.26 以上
-- Node.js 22.12 以上と npm
-- Python 3.11 以上
+- The official ChatGPT desktop app from the Microsoft Store
+- Go 1.26+
+- Node.js 22.12+ and npm
+- Python 3.11+
 
 ```powershell
 winget install --id Git.Git
@@ -103,23 +103,26 @@ winget install --id OpenJS.NodeJS.LTS
 winget install --id Python.Python.3.12
 ```
 
-## インストール
+## Install
 
-PowerShell で次を実行する。ソースの取得・更新、固定されたビルド依存の導入、独立アプリの作成、
-起動までを 1 コマンドで行う。
+Run this in PowerShell. It fetches or updates the source, installs the locked build
+dependencies, creates the independent app, and launches it.
 
 ```powershell
 irm https://raw.githubusercontent.com/developer-nagi/codex-subscription-router-win/main/install.ps1 | iex
 ```
 
-インストーラはソースを `%USERPROFILE%\.codex-subscription-router\source` に保持する。既存の
-インストールがある場合はアカウント状態を引き継ぎ、復元可能なバックアップを作成する。前提条件や
-上流互換性の検査に失敗したときは、部分的なインストールを作らずに明確なメッセージで停止する。
+The installer keeps its source checkout in
+`%USERPROFILE%\.codex-subscription-router\source`. On an existing installation it reuses
+the same account state and creates a recoverable backup. When a prerequisite or an
+upstream compatibility check fails, it stops with a clear message instead of leaving a
+partial installation.
 
 > [!TIP]
-> 実行前に内容を確認するには [`install.ps1`](install.ps1) を開くか、パイプせずにダウンロードする。
+> To inspect the installer first, open [`install.ps1`](install.ps1) or download it without
+> piping it into a shell.
 
-### クローンからインストール
+### Install from a clone
 
 ```powershell
 git clone https://github.com/developer-nagi/codex-subscription-router-win.git
@@ -128,82 +131,87 @@ npm ci --ignore-scripts
 python scripts/patch_app.py
 ```
 
-作成されるもの:
+This creates:
 
 - `%LOCALAPPDATA%\Programs\Codex Subscription Router`
-- スタートメニューのショートカット「Codex Subscription Router」
-- `%APPDATA%\Codex Subscription Router` 配下の独立したデスクトッププロファイル
+- A Start Menu shortcut named "Codex Subscription Router"
+- An independent desktop profile under `%APPDATA%\Codex Subscription Router`
 
-公式アプリと同時に起動できる。プロファイルとユーザーデータが分離されているため、互いに影響しない。
+It runs alongside the official app. Their profiles and user data are separate, so neither
+affects the other.
 
-## サブスクリプションを追加する
+## Add subscriptions
 
-1. サイドバー下部のプロフィールメニューを開く。
-2. **サブスクリプションを追加** を選び、追加方法を選ぶ。
-   - **ChatGPT でサインイン** — 表示されたデバイスコードでブラウザからサインインする。
-     アカウント側で Codex のデバイスコード認証が有効である必要がある。
-   - **auth.json をインポート** — 既存の Codex ログインファイルを読み込む。
-     デバイスコード認証を使えない場合はこちらを選ぶ。
-3. アプリに戻り、アカウント行が現れるのを待つ。
+1. Open the profile menu at the bottom of the sidebar.
+2. Select **Add another subscription** and choose how to connect.
+   - **Continue with ChatGPT** — sign in from a browser with the displayed device code.
+     Codex device-code authentication must be enabled on the account being added.
+   - **Import auth.json** — read an existing Codex login file. Use this when device-code
+     authentication is unavailable.
+3. Return to the app and wait for the account row to appear.
 
-コード表示中はメニュー外をクリックしても閉じない。コードをクリックするとコピーされ、
-確認ページが開く。
+While the code is visible, clicking away does not dismiss the menu. Clicking the code
+copies it and opens the verification page.
 
-プロフィールメニューには合算の週次利用量に続いて、サブスクリプションごとの行が並ぶ。
-メールアドレスはホバーするまでマスクされる。最終行から常に追加のサインインを開始できる。
+The profile menu shows combined weekly usage followed by one row per subscription. Email
+addresses stay masked until hovered. The final row always starts another sign-in.
 
-**サブスクリプションを管理** を選ぶと各行が削除操作になる。プライマリは削除できない。
-削除するとチャットはただちにアプリから消えるが、アカウントのデータは
-`%USERPROFILE%\.codex-muxackupsccounts` へ退避されるため復元できる。サインインが
-完了しなかったアカウントも管理モードでは表示され、ここから片付けられる。
+Select **Manage subscriptions** to turn each row into a remove action. The Primary
+subscription cannot be removed. Removing one takes its chats out of the app immediately,
+but its account data moves to `%USERPROFILE%\.codex-mux\backups\accounts`, so it stays
+recoverable. An account whose sign-in never finished is also listed while managing, so it
+can be cleared from there.
 
-## ルーティングの挙動
+## Routing behaviour
 
-| 状況 | 挙動 |
+| Situation | Behaviour |
 | --- | --- |
-| 新しいチャット | 失効が近い利用枠、貯まったリセット、短期枠の逼迫度で割り当て |
-| 続きの発言 | そのスレッドに永続化された所有アカウントへ送る |
-| 所有アカウントが枯渇 | 余力のある別アカウントで継続 |
-| 全アカウントが枯渇 | 次回リセット時刻を含む 1 件のアラート |
-| アカウントを無効化 | ルーティングと合算利用枠から除外 |
-| 独自プロバイダまたは OpenAI 以外のベース URL | 合算 ChatGPT 利用枠を使わず、そのアカウントに設定された Codex プロバイダへ送る |
+| New chat | Assigned by quota at risk, banked resets, and short-window pressure |
+| Follow-up | Sent to the thread's persisted account owner |
+| Owner depleted | Continued through another account with capacity |
+| Every account depleted | One combined alert with the next known reset |
+| Account disabled | Excluded from routing and pooled usable quota |
+| Custom provider or non-OpenAI base URL | Sent through the account's configured Codex provider without using pooled ChatGPT quota |
 
-## 更新と再ビルド
+## Update and rebuild
 
-コピーしたアプリの自動更新経路は公式 MSIX パッケージから切り離されているため、Store 側の更新で
-パッチ済みコピーが上書きされることはない。公式アプリを更新したあと、その新しいビルドが
-対応表に載っていることを確認してから再ビルドする。
+The copied app is detached from the official MSIX package, so a Store update cannot
+overwrite it. After updating the official app, confirm the new build is listed as
+compatible, then rebuild.
 
 ```powershell
 python scripts/patch_app.py --force
 ```
 
-先に Codex Subscription Router を終了しておく。既存のインストールは
-`%USERPROFILE%\.codex-mux\backups` 配下のタイムスタンプ付きディレクトリへ退避される。アカウント状態と
-資格情報はアプリ本体の外に保存されるため、そのまま維持される。再ビルドしたアプリの動作確認後に、
-古いバックアップは手動で削除する。
+Quit Codex Subscription Router first. The existing installation moves to a timestamped
+directory under `%USERPROFILE%\.codex-mux\backups`. Account state and credentials live
+outside the app itself and are preserved. Delete old backups manually once the rebuilt app
+passes the smoke test.
 
-## ローカルデータとセキュリティ
+## Local data and security
 
-| パス | 用途 |
+| Path | Purpose |
 | --- | --- |
-| `%USERPROFILE%\.codex` | プライマリの資格情報・会話・キャッシュ |
-| `%USERPROFILE%\.codex-mux\state.json` | アカウント情報とスレッド所有の永続化 |
-| `%USERPROFILE%\.codex-mux\accounts\<id>\codex-home` | 隔離されたセカンダリアカウントのデータ |
-| `%USERPROFILE%\.codex-mux\control-token` | ループバック限定の制御サービス用トークン |
-| `%USERPROFILE%\.codex-mux\backups` | 復元可能なアプリのバックアップ |
-| `%APPDATA%\Codex Subscription Router` | 独立したデスクトッププロファイル |
+| `%USERPROFILE%\.codex` | Primary credentials, conversations, and cache |
+| `%USERPROFILE%\.codex-mux\state.json` | Account metadata and sticky thread ownership |
+| `%USERPROFILE%\.codex-mux\accounts\<id>\codex-home` | Isolated secondary account data |
+| `%USERPROFILE%\.codex-mux\control-token` | Token for the loopback-only control service |
+| `%USERPROFILE%\.codex-mux\backups` | Recoverable app and account backups |
+| `%APPDATA%\Codex Subscription Router` | Independent desktop profile |
 
-制御サービスは `127.0.0.1` にのみバインドし、非公開経路をランダムな 256 ビットトークンで保護する。
-OAuth トークンは各アカウントの Codex ホーム内に留まり、制御 API から返されることはない。
-状態ディレクトリの ACL は継承を切り、現在のユーザーのみに限定する。
+The control service binds only to `127.0.0.1` and protects private routes with a random
+256-bit token. OAuth tokens stay inside their account's Codex home and are never returned
+by the control API. The state directory's ACL breaks inheritance and is limited to the
+current user.
 
-プラグイン構成は意図的にプライマリアカウントから同期される。共有 MCP 構成に埋め込まれた秘密情報は
-各隔離アカウントのホームへコピーされるため、アカウントディレクトリは秘密情報の分離境界ではない。
+Plugin configuration is deliberately synchronized from the Primary account. Inline secrets
+inside shared MCP configuration are therefore copied into each isolated account home; the
+account directories are not a separate secret boundary.
 
-資格情報・署名・ローカル制御サービスに関する問題は [SECURITY.md](SECURITY.md) を先に読むこと。
+Read [SECURITY.md](SECURITY.md) before reporting a credential, signing, or local
+control-service issue.
 
-## 開発と検証
+## Development and verification
 
 ```powershell
 npm ci --ignore-scripts
@@ -211,93 +219,77 @@ npm run check
 npm run release:check
 ```
 
-Go バックエンドと注入するレンダラーには実行時のサードパーティ依存がない。`@electron/asar` は
-ビルド時のみ使う。決定的な UI プレビュー経路は、起動時に `CODEX_MUX_UI_TESTS=1` がある場合のみ
-有効になり、常にトークン認証を要求する。
+The Go backend and the injected renderer have no runtime third-party dependencies;
+`@electron/asar` is build-only. Deterministic UI preview routes are enabled only when
+`CODEX_MUX_UI_TESTS=1` is present at launch and always require the control token.
 
-実機での確認手順は [SMOKE-TEST.md](docs/SMOKE-TEST.md) にある。
+The on-device procedure is in [SMOKE-TEST.md](docs/SMOKE-TEST.md).
 
-## 既知の制限
+## Known limitations
 
-- 上流の ChatGPT 更新により、レンダラーのアンカーを再導出する必要が生じる場合がある。
-  アンカーはビルドごとの minify 結果に依存し、バージョン間で互換性がない。
-- macOS 版にあった以下の機能は、Windows 版で該当画面の実装が変わったため未移植:
-  プロフィール設定でアカウントを選んで個別統計を見る機能、設定 → プラグインのサブスクリプション
-  切り替え、スレッド要約の「サブスクリプション」欄。合算プロフィールの表示そのものは動作する。
-  詳細と現状は [対応状況](docs/COMPATIBILITY.md) を参照。
-- 初回の履歴統合取得はアカウントあたり 500 スレッドまで。
-- 合算の「探索したスキル」はアカウントごとに同じスキルを重複計上しうる。上流のプロフィール応答が
-  スキル ID ではなく件数を返すため。
-- 配布はソースのみ。パッチ済みの OpenAI バイナリを配布することはない。
+- An upstream ChatGPT update can require re-deriving the renderer anchors. They depend on
+  each build's minifier output and are not compatible across versions.
+- Some features from the macOS build are not ported, because the Windows build implements
+  those screens differently: selecting one account's statistics on the Profile page,
+  subscription switching on Settings → Plugins, and the "Subscription" row in the thread
+  summary. The combined profile display itself works. See
+  [Compatibility](docs/COMPATIBILITY.md).
+- The initial merged history fetch is limited to 500 threads per account.
+- Combined "skills explored" totals can count the same skill once per account, because
+  the upstream profile response exposes counts rather than skill IDs.
+- Translations other than English and Japanese are machine-generated and have not been
+  reviewed by native speakers. Corrections go in `ui/messages/<locale>.json`.
+- Releases are source-only; patched OpenAI binaries are never distributed.
 
-## fork 元の変更を取り込む
+## Taking changes from upstream
 
-本 fork は fork 元 (macOS 版) と大きく分岐しているため、`git merge upstream/main` は使わない。
-上流の変更はコミット単位で確認し、必要なものだけを適用する。
+This fork has diverged substantially from upstream (the macOS build), so
+`git merge upstream/main` is not used. Upstream changes are reviewed one commit at a time
+and only the relevant ones are applied.
 
 ```powershell
 npm run upstream:check -- --fetch
 ```
 
-未確認の上流コミットを列挙し、変更ファイルを「取り込み候補 / 要注意 / 対象外」に分類する。
-分岐元が古い上流ブランチも警告する。手順と判断の記録は
-[UPSTREAM-SYNC.md](docs/UPSTREAM-SYNC.md) と `scripts/upstream-sync.json` にある。
+That lists unreviewed upstream commits, classifies their files as candidate, review, or
+not applicable, and warns about branches cut from an older base. The procedure and the
+decision log are in [UPSTREAM-SYNC.md](docs/UPSTREAM-SYNC.md) and
+`scripts/upstream-sync.json`.
 
-## コントリビューションとリリース
+## Contributing and releases
 
-変更を送る前に [CONTRIBUTING.md](CONTRIBUTING.md) を読むこと。リリースは
-[RELEASING.md](docs/RELEASING.md) のソース限定手順に従い、対象コミットでの実機確認を必須とする。
-
-## 謝辞
-
-本プロジェクトは Bennett Blackham 氏による
-[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
-を出発点としている。次の設計と実装はいずれも上流の成果であり、本 fork はそれを受け継いでいる。
-
-- 1 本の app-server 接続をアカウントごとの Codex 子プロセスへ分配する多重化アーキテクチャ
-- 週次利用枠の失効までの猶予とリセットクレジットで新規チャットを割り当てる設計
-- スレッドを 1 つのサブスクリプションへ固定し、枯渇時にだけ引き継ぐ方針
-- アカウントごとに Codex ホームを隔離し、管理対象の構成だけを共有する仕組み
-- 期待するアンカーが 1 つでも欠けたら停止する fail-closed のパッチ方針
-- ループバック限定・トークン認証の制御 API と、その周辺のセキュリティ設計
-
-本 fork が加えたのは、プラットフォームを Windows へ置き換えたことと日本語化であり、
-上記の考え方そのものは変更していない。優れた土台を公開してくださったことに感謝する。
-
-上流は macOS 版として開発が続いている。macOS を使う場合は本 fork ではなく
-[オリジナル](https://github.com/b-nnett/codex-subscription-router) を利用すること。
-本 fork の不具合や要望を上流へ持ち込まないよう注意する。
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Releases follow the
+source-only process in [RELEASING.md](docs/RELEASING.md) and require an on-device check
+of the exact tagged commit.
 
 ## Acknowledgements
 
 This project starts from
-[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
-by Bennett Blackham. The following design and implementation are upstream's
-work, and this fork inherits them:
+[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router) by
+Bennett Blackham. The following design and implementation are upstream's work, and this
+fork inherits them:
 
-- The multiplexing architecture that fans one app-server connection out to one
-  Codex child per account.
-- Assigning new chats by how much weekly allowance is at risk before it resets,
-  with a bounded boost for banked usage resets.
-- Pinning a thread to one subscription and handing it over only once that
-  subscription is depleted.
+- The multiplexing architecture that fans one app-server connection out to one Codex
+  child per account.
+- Assigning new chats by how much weekly allowance is at risk before it resets, with a
+  bounded boost for banked usage resets.
+- Pinning a thread to one subscription and handing it over only once that subscription is
+  depleted.
 - Isolating a Codex home per account while sharing only managed configuration.
-- The fail-closed patching policy that stops when a single expected anchor is
-  missing.
-- The loopback-only, token-authenticated control API and the security model
-  around it.
+- The fail-closed patching policy that stops when a single expected anchor is missing.
+- The loopback-only, token-authenticated control API and the security model around it.
 
-What this fork adds is replacing the platform with Windows and localizing the
-interface into Japanese; none of the thinking above was changed. Thank you for
-publishing such a solid foundation.
+What this fork adds is replacing the platform with Windows and localizing the interface;
+none of the thinking above was changed. Thank you for publishing such a solid foundation.
 
 Upstream continues as the macOS build. On macOS, use
-[the original](https://github.com/b-nnett/codex-subscription-router) rather than
-this fork, and please do not bring issues or requests from this port upstream.
+[the original](https://github.com/b-nnett/codex-subscription-router) rather than this
+fork, and please do not bring issues or requests from this port upstream.
 
-## ライセンス
+## License
 
-本プロジェクトのソースは [MIT License](LICENSE) で提供する。著作権表示は
-オリジナルの著作者である Bennett Blackham 氏のものを保持している。
+This project's source is available under the [MIT License](LICENSE). The copyright notice
+is kept as the original author's, Bennett Blackham.
 
-ChatGPT、Codex、および公式の Windows アプリは OpenAI の製品であり、本ライセンスの対象外である。
+ChatGPT, Codex, and the official Windows app are OpenAI products and are not covered by
+this license.

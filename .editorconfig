@@ -17,5 +17,5 @@ indent_style = tab
 indent_style = tab
 
 [*.ps1]
-# Windows PowerShell 5.1 は BOM 無しの UTF-8 を ANSI として読む。
+# Windows PowerShell 5.1 reads UTF-8 without a BOM as ANSI.
 charset = utf-8-bom

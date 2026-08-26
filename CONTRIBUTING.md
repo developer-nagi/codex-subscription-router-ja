@@ -1,9 +1,9 @@
-# コントリビューション
+# Contributing
 
-## 開発環境
+## Development setup
 
-Windows 11 x64 に Go 1.26 以上、Node.js 22.12 以上、npm、Python 3.11 以上、公式 ChatGPT
-デスクトップアプリを用意する。
+Use Windows 11 x64 with Go 1.26+, Node.js 22.12+, npm, Python 3.11+, and the official
+ChatGPT desktop app installed.
 
 ```powershell
 npm ci --ignore-scripts
@@ -11,39 +11,58 @@ npm run check
 npm run release:check
 ```
 
-アプリ本体、資格情報、アカウント状態、マスクされていないメールアドレスやデバイスコードを含む
-キャプチャを commit してはならない。
+Never commit an app bundle, credentials, account state, or a capture containing an
+unmasked email address, account name, device code, or installed plugin list.
 
-## パッチの変更
+## Patch changes
 
-レンダラーとメインプロセスのパッチは上流の正確なアンカーに依存する。変更は次を満たすこと。
+Renderer and main-process patches depend on exact upstream anchors. A change must:
 
-1. 公式アプリを変更しないこと。
-2. 期待するアンカーが存在しない場合に fail-closed で停止すること。
-3. アカウントの隔離とスレッド所有の固定を維持すること。
-4. 制御サービスをループバックとトークン認証に限定し続けること。
-5. バックエンドの挙動には焦点を絞ったテストを追加し、利用者から見える新しい状態には
-   必要に応じてスクリーンショットを添えること。
+1. Keep the official app immutable.
+2. Fail closed when an expected anchor is absent.
+3. Preserve account isolation and sticky thread ownership.
+4. Keep control services on loopback with token authentication.
+5. Add focused tests for backend behaviour, and a curated screenshot for a new
+   user-visible state when appropriate.
 
-アンカーは公式ビルドごとの minify 結果に依存する。`docs/COMPATIBILITY.md` に記録された
-ビルドで検証し、新しい公式ビルドでアンカーの変更が必要になった場合は同じ pull request で
-その文書も更新する。
+Anchors depend on each official build's minifier output. Verify against the build
+recorded in `docs/COMPATIBILITY.md`, and update that file in the same pull request when a
+new official build needs different anchors.
 
-PowerShell スクリプトに非 ASCII を含める場合は UTF-8 BOM を付ける。Windows PowerShell 5.1 は
-BOM が無いと ANSI として解釈する。`npm run check:powershell` がこれを検査する。
+The injected UI must not hardcode minified identifiers. Declare them as placeholders in
+`ui/account-menu.js` and bind them in `RENDERER_BINDINGS`, so a missing declaration stops
+the patch instead of crashing the renderer.
 
-## fork 元の変更を取り込む
+## Localization
 
-fork 元は macOS 版であり、本 fork とは大きく分岐している。`git merge upstream/main` は
-使わず、コミット単位で選んで適用する。手順と判断基準は
-[UPSTREAM-SYNC.md](docs/UPSTREAM-SYNC.md) にある。
+Every user-facing string in the injected UI is a formatjs descriptor with an `id`, an
+English `defaultMessage`, and a `description`. Adding a string means adding it to every
+file in `ui/messages/`, because a missing key is caught by the consistency check.
+
+Keep placeholders identical across languages. Use plain `{count}` interpolation in
+translations rather than ICU plural categories; only the English `defaultMessage` uses
+real plural forms, since a wrong plural category makes formatjs fail at runtime.
+
+## Language
+
+Code, comments, documentation, and commit messages are written in English. The Japanese
+UI lives in `ui/messages/ja-JP.json`, alongside every other language.
+
+PowerShell scripts containing non-ASCII characters need a UTF-8 BOM, because Windows
+PowerShell 5.1 reads a BOM-less file as ANSI. `npm run check:powershell` enforces this.
+
+## Taking changes from upstream
+
+Upstream is the macOS build and has diverged substantially from this fork. Do not use
+`git merge upstream/main`; review and apply commits individually. The procedure and the
+decision log are in [UPSTREAM-SYNC.md](docs/UPSTREAM-SYNC.md).
 
 ```powershell
 npm run upstream:check -- --fetch
 ```
 
-## Pull Request
+## Pull requests
 
-変更は焦点を絞り、セキュリティに影響する挙動は明示的に説明する。CI は Go のテストと vet、
-JavaScript の構文、Python のコンパイル、PowerShell の構文と BOM、リリースメタデータの
-整合性を検査する。
+Keep changes focused and explain security-sensitive behaviour explicitly. CI checks Go
+tests and vetting, JavaScript syntax, Python compilation, PowerShell syntax and BOM, and
+release metadata consistency.

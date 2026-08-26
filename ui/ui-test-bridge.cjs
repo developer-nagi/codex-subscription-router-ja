@@ -31,11 +31,13 @@ function mainWindow() {
   return windows.find((window) => window.isVisible()) ?? windows[0];
 }
 
+// The app UI follows the display language, so selectors match both English and
+// Japanese text. Extend these lists when testing another locale.
 async function runAction(window, action, delayMs) {
   window.show();
   window.focus();
   if (action === "profile-toggle") {
-    const toggled = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button[aria-label]')].find(element=>{const label=element.getAttribute('aria-label')||'';return label==='合算プロフィール統計を表示'||label.endsWith(' のプロフィール統計を表示')}); if(!target)return false; target.click(); return true; })()`);
+    const toggled = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button[aria-label]')].find(element=>{const label=element.getAttribute('aria-label')||'';return label==='Show combined profile stats'||label.endsWith(' profile stats')||label==='合算プロフィール統計を表示'||label.endsWith(' のプロフィール統計を表示')}); if(!target)return false; target.click(); return true; })()`);
     if (!toggled) throw new Error("Could not toggle a subscription profile");
     await new Promise((resolve) => setTimeout(resolve, Math.max(delayMs, 1_500)));
     return;
@@ -43,8 +45,8 @@ async function runAction(window, action, delayMs) {
   if (action === "plugins-select-second") {
     const selected = await window.webContents.executeJavaScript(`(() => {
       const accountButtons=[...document.querySelectorAll('button[aria-pressed]')]
-        .filter(button=>button.textContent?.includes('サブスクリプション'));
-      const target=accountButtons.find(button=>button.textContent?.includes('サブスクリプション 2'))??accountButtons[0];
+        .filter(button=>button.textContent?.includes('Subscription')||button.textContent?.includes('サブスクリプション'));
+      const target=accountButtons.find(button=>button.textContent?.includes('Subscription 2')||button.textContent?.includes('サブスクリプション 2'))??accountButtons[0];
       if(!target)return false;
       target.click();
       return true;
@@ -53,7 +55,7 @@ async function runAction(window, action, delayMs) {
     await new Promise((resolve) => setTimeout(resolve, 750));
     const selectionState = await window.webContents.executeJavaScript(`(() => {
       const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('サブスクリプション 2'));
+        .find(button=>button.textContent?.includes('Subscription 2')||button.textContent?.includes('サブスクリプション 2'));
       return {accountId:globalThis.__codexMuxPluginAccountId??null,pressed:target?.getAttribute('aria-pressed')??null};
     })()`);
     if (selectionState.accountId === "primary" || selectionState.pressed !== "true") {
@@ -65,7 +67,7 @@ async function runAction(window, action, delayMs) {
   if (action === "usage-select-second") {
     const selected = await window.webContents.executeJavaScript(`(() => {
       const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('サブスクリプション 2'));
+        .find(button=>button.textContent?.includes('Subscription 2')||button.textContent?.includes('サブスクリプション 2'));
       if(!target)return false;
       target.click();
       return true;
@@ -73,7 +75,7 @@ async function runAction(window, action, delayMs) {
     if (!selected) throw new Error("Could not select a secondary reset subscription");
     const selectionState = await window.webContents.executeJavaScript(`new Promise((resolve) => {
       const read=()=>{const target=[...document.querySelectorAll('button[aria-pressed]')]
-        .find(button=>button.textContent?.includes('サブスクリプション 2'));
+        .find(button=>button.textContent?.includes('Subscription 2')||button.textContent?.includes('サブスクリプション 2'));
         return {accountId:globalThis.__codexMuxResetAccountId??null,pressed:target?.getAttribute('aria-pressed')??null};};
       const deadline=Date.now()+4000;
       const poll=()=>{const state=read();if(state.accountId&&state.accountId!=="primary"&&state.pressed==="true")resolve(state);else if(Date.now()>=deadline)resolve(state);else setTimeout(poll,100);};
@@ -86,10 +88,10 @@ async function runAction(window, action, delayMs) {
     return;
   }
   const settingsSections = {
-    "settings-profile": "プロフィール",
-    "settings-plugins": "プラグイン",
-    "settings-appshots": "Appshots",
-    "settings-computer-use": "Computer use",
+    "settings-profile": ["Profile", "プロフィール"],
+    "settings-plugins": ["Plugins", "プラグイン"],
+    "settings-appshots": ["Appshots"],
+    "settings-computer-use": ["Computer use", "コンピューターの使用"],
   };
   if (Object.hasOwn(settingsSections, action)) {
     const section = settingsSections[action];
@@ -113,7 +115,7 @@ async function runAction(window, action, delayMs) {
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
     const settingsWindow = mainWindow() ?? window;
-    const sectionPoint = await settingsWindow.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('body *')].find(element=>element.children.length===0&&element.textContent?.trim()===${JSON.stringify(section)}); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
+    const sectionPoint = await settingsWindow.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('body *')].find(element=>element.children.length===0&&${JSON.stringify(section)}.includes(element.textContent?.trim())); if(!target)return null; const rect=target.getBoundingClientRect(); return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}; })()`);
     if (!sectionPoint) throw new Error(`Could not open Settings > ${section}`);
     settingsWindow.webContents.sendInputEvent({ type: "mouseDown", x: sectionPoint.x, y: sectionPoint.y, button: "left", clickCount: 1 });
     settingsWindow.webContents.sendInputEvent({ type: "mouseUp", x: sectionPoint.x, y: sectionPoint.y, button: "left", clickCount: 1 });
@@ -215,7 +217,7 @@ async function runAction(window, action, delayMs) {
       window.webContents.sendInputEvent({ type: "mouseDown", x: point.x, y: point.y, button: "left", clickCount: 1 });
       window.webContents.sendInputEvent({ type: "mouseUp", x: point.x, y: point.y, button: "left", clickCount: 1 });
       await new Promise((resolve) => setTimeout(resolve, 350));
-      const opened = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button,[role="menuitem"]')].find(element=>element.textContent?.includes('残り利用枠')); if(!target)return false; target.click(); return true; })()`);
+      const opened = await window.webContents.executeJavaScript(`(() => { const target=[...document.querySelectorAll('button,[role="menuitem"]')].find(element=>element.textContent?.includes('Usage remaining')||element.textContent?.includes('残り利用枠')); if(!target)return false; target.click(); return true; })()`);
       if (!opened) throw new Error("Could not open the Usage sheet");
       await new Promise((resolve) => setTimeout(resolve, 750));
     }

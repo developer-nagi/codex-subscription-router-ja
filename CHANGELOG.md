@@ -1,85 +1,92 @@
-# 変更履歴
+# Changelog
 
-本プロジェクトは [Keep a Changelog](https://keepachangelog.com/) に従い、
-[セマンティックバージョニング](https://semver.org/lang/ja/) を採用する。
+This project follows [Keep a Changelog](https://keepachangelog.com/) and
+[Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### 変更
+### Changed
 
-- 対象プラットフォームを macOS から **Windows 11 x64** へ全面的に置き換えた。公式アプリは
-  MSIX パッケージ `OpenAI.Codex` を入力として自動検出する。
-- 利用者から見えるすべての文字列を日本語化した。アカウントメニュー、利用枠の表示、
-  サインイン導線、枯渇アラート、既定のアカウントラベルを含む。
-- インストーラを `install.sh` から `install.ps1` へ置き換えた。
-- ランチャーを macOS の C 実装から Go 実装 (`cmd/launcher`) へ置き換えた。
-  `-H=windowsgui` でビルドし、コンソール窓を出さずに隔離プロファイルを渡す。
-- CI とリリースのワークフローを `windows-latest` へ移行し、PowerShell の構文と BOM を
-  検査する `npm run check:powershell` を追加した。
+- Replaced the target platform: macOS becomes **Windows 11 x64**. The official app is
+  detected automatically from the MSIX package `OpenAI.Codex`.
+- Replaced the installer, `install.sh` becoming `install.ps1`.
+- Replaced the launcher, the macOS C implementation becoming Go (`cmd/launcher`). It is
+  built with `-H=windowsgui` so it passes the isolated profile without a console window.
+- Moved the CI and release workflows to `windows-latest`, and added
+  `npm run check:powershell` to check PowerShell syntax and the BOM requirement.
+- Made English the default language of the project. Documentation, comments, and commit
+  messages are English; Japanese lives in `ui/messages/ja-JP.json` like every other
+  language.
 
-### 追加
+### Added
 
-- 多重化プロキシが `codex.real.exe` を解決し、Windows で子プロセスを終了できるようになった。
-- 注入 UI がビルド依存の識別子をプレースホルダとして持ち、パッチャーが宣言の存在を検証して
-  束縛するようになった。束縛できない場合は fail-closed で停止する。
-- UI テストブリッジのセレクタを英語・日本語の両方に対応させた。
-- プロフィール設定が合算であることを表示するようにした。接続が 2 件以上のとき、接続中の
-  アカウントを重ねたアバターと「合算プロフィール」を示す。統計自体は以前から合算だったが、
-  単一アカウントの識別情報を出していたため合算だと分からなかった。
-- fork 元の変更を選択適用するための運用を整備した。`npm run upstream:check` が未確認の
-  上流コミットを分類し、分岐元が古い上流ブランチを警告する。判断は
-  `scripts/upstream-sync.json` に記録し、手順は `docs/UPSTREAM-SYNC.md` に置いた。
-- 上流の Dependabot が提案する依存更新を個別に取り込んだ。`@electron/asar` 4.2.1 → 4.3.0、
-  `actions/checkout` v6 → v7.0.1、`actions/setup-node` v6 → v7.0.0。上流の該当ブランチは
-  リネーム前のコミットから分岐しているため、マージせず内容のみを適用した。
+- The multiplexer resolves `codex.real.exe` and can terminate its children on Windows.
+- The injected UI declares build-specific identifiers as placeholders, and the patcher
+  binds them only after verifying each declaration. It fails closed otherwise.
+- Localization for the injected UI through the same formatjs mechanism the official app
+  uses. Translations for all 64 shipped locales are inserted into the official locale
+  bundles, so the account UI follows the display language exactly as native strings do.
+- The Profile page shows that its statistics are pooled. With two or more connections it
+  renders the connected accounts as overlapping avatars with "Combined profile". The
+  statistics were already pooled, but a single account's identity hid that.
+- A process for taking upstream changes selectively. `npm run upstream:check` classifies
+  unreviewed upstream commits, warns about branches cut from an older base, and lists the
+  upstream's open pull requests, which mostly come from forks and never appear in
+  `git ls-remote`. Decisions are recorded in `scripts/upstream-sync.json`, and the
+  procedure is in `docs/UPSTREAM-SYNC.md`.
+- Dependency updates proposed by upstream's Dependabot, applied individually:
+  `@electron/asar` 4.2.1 → 4.3.0, `actions/checkout` v6 → v7.0.1, and
+  `actions/setup-node` v6 → v7.0.0. Two of those upstream branches were cut before the
+  project rename, so their content was applied rather than merged.
 
-### 削除
+### Removed
 
-- コード署名、Apple チーム識別子の書き換え、Computer Use ヘルパーの独立署名、
-  `ElectronAsarIntegrity` の更新をすべて削除した。Windows ビルドは Electron fuse
-  `EnableEmbeddedAsarIntegrityValidation` が無効で、これらの処理を必要としない。
-- macOS 専用の `install.sh` と `native/launcher.c` を削除した。
+- Code signing, Apple team identifier rewriting, the independently signed Computer Use
+  helper, and `ElectronAsarIntegrity` updates. The Windows build ships the Electron fuse
+  `EnableEmbeddedAsarIntegrityValidation` disabled and needs none of it.
+- The macOS-only `install.sh` and `native/launcher.c`.
 
-### 上流から取り込み
+### Taken from upstream
 
-- 外部プロバイダ経由のリクエストを合算 ChatGPT 利用枠の外へルーティングする
-  (上流 PR #13)。独自プロバイダ、プロバイダ接頭辞付きモデル、OpenAI 以外のベース URL を
-  検出し、そのアカウントの Codex プロバイダへそのまま送る。未マージ PR のため、上流で
-  変更された場合は追随が必要。
+- Routing requests billed outside a ChatGPT subscription away from the pool (upstream
+  PR #13). An explicit model provider, a provider-prefixed model, or a non-OpenAI base
+  URL is sent through the account's own Codex provider.
+- Subscription removal (upstream PR #21). A removed account's Codex home moves to
+  `backups/accounts` so the removal stays recoverable. Windows cannot move a directory a
+  running process still holds, so removal waits for the child to exit and retries while
+  handles are released.
+- `auth.json` import (upstream PR #20), which adds a way to connect an account when
+  device-code authentication is unavailable on it.
+- Restored the CORS `Access-Control-Allow-Headers` that upstream PR #21 dropped, and
+  added a preflight regression test. Without that header every request from the injected
+  UI fails.
+- Manage mode also lists accounts that never finished signing in, so one cannot be left
+  behind with no way to clear it.
 
-### 上流から取り込み (続き)
+Those three pull requests are still open upstream, so they may need to follow later
+changes.
 
-- サブスクリプションの削除を追加した (上流 PR #21)。削除したアカウントの Codex ホームは
-  `backups/accounts` へ退避し復元可能にする。Windows では終了していないプロセスが握る
-  ディレクトリを移動できないため、子プロセスの終了を待ち、ハンドル解放を待って再試行する
-  処理を加えた。
-- `auth.json` のインポートを追加した (上流 PR #20)。アカウント側でデバイスコード認証を
-  使えない場合の追加手段になる。
-- 上流 PR #21 が取りこぼしていた CORS の `Access-Control-Allow-Headers` を復元し、
-  preflight の回帰テストを追加した。欠けたままでは注入 UI からの通信が全て失敗する。
-- 管理モードでは未接続のアカウントも表示するようにした。サインインに失敗したアカウントが
-  UI から消せないままになるのを防ぐ。
+### Not ported
 
-### 未移植
-
-- 設定 → プラグインのサブスクリプション切り替え、プロフィール設定のアカウント別アバター選択、
-  スレッド要約の「サブスクリプション」欄、「残り利用枠」行から使用量モーダルを開く導線。
-  Windows ビルドで該当画面の実装が変わったため。詳細は `docs/COMPATIBILITY.md` を参照。
+- Subscription switching on Settings → Plugins, selecting one account's statistics on the
+  Profile page, the "Subscription" row in the thread summary, and opening the usage modal
+  from the "Usage remaining" row. The Windows build implements those screens differently.
+  See `docs/COMPATIBILITY.md`.
 
 ## [0.1.0] - 2026-08-15
 
-### 追加
+### Added
 
-- 利用枠を考慮した分散とスレッド固定によるマルチサブスクリプションルーティング。
-- アカウントの隔離、デバイスコードサインイン、合算利用量、枯渇時のフェイルオーバー。
-- ネイティブのアカウントメニュー、マスクされたメール、プラン表示、プロフィール写真。
-- アカウント別選択に対応した合算プロフィール統計。
-- 設定 → プラグインでのアカウント別 Apps および MCP 接続状態。
-- アカウント別のレート制限リセット選択と、プール全体の枯渇処理。
-- 独立署名による Appshots と Computer Use 対応。
-- 上流互換性の fail-closed 検査と、深い階層から順に署名するヘルパー処理。
-- ループバック限定でトークン認証された診断用 UI 状態。
-- ソース限定の CI、リリース草稿の自動化、セキュリティ文書、実機確認手順。
+- Multi-subscription routing with quota-aware balancing and sticky threads.
+- Account isolation, device-code sign-in, pooled usage, and depletion failover.
+- A native account menu with masked emails, plan labels, and profile photos.
+- Combined profile statistics with per-account selection.
+- Per-account Apps and MCP connection state on Settings → Plugins.
+- Per-account rate-limit reset selection and pool-wide depletion handling.
+- Independently signed Appshots and Computer Use support.
+- Fail-closed upstream compatibility checks and depth-first helper signing.
+- Loopback-only, token-authenticated diagnostic UI states.
+- Source-only CI, release draft automation, security documentation, and a smoke test.
 
 [Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.1.0

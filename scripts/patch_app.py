@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Windows 版 ChatGPT デスクトップの独立コピーを作り、Codex 多重化を注入する。
+"""Build an independent copy of the Windows ChatGPT desktop with Codex multiplexing.
 
-公式アプリ (MSIX パッケージ) は入力としてのみ読み取り、決して変更しない。
+The official app (an MSIX package) is read as build input only and never modified.
 """
 
 from __future__ import annotations
@@ -36,23 +36,49 @@ DEFAULT_DESTINATION = (
 )
 DEFAULT_STATE_ROOT = Path.home() / ".codex-mux"
 
-# 検証済みの公式ビルド。バージョンと app.asar SHA-256 の両方で fail-closed に判定する。
+# Reviewed official builds. Both the version and the app.asar SHA-256 must match;
+# anything else fails closed.
 TESTED_SOURCE_BUILDS = {
     "26.818.8289.0": "e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313",
 }
 
-# 注入する UI が参照する、公式ビルド側の minify 済み識別子。
-# 値はビルドごとに変わるため、置換前に宣言の存在を必ず検証する。
+# Minified identifiers from the official build that the injected UI references.
+# They change between builds, so every declaration is verified before substitution.
 RENDERER_BINDINGS = {
-    # プレースホルダ: (識別子, その識別子の宣言を一意に示す断片)
+    # placeholder: (identifier, a fragment that uniquely marks its declaration)
     "__CODEX_MUX_JSX__": ("u7", "u7=J()"),
     "__CODEX_MUX_REACT__": ("nql", "nql=r(s(),1)"),
     "__CODEX_MUX_MENU_ITEM__": ("fI", "function fI("),
     "__CODEX_MUX_MENU__": ("vI", "vI={Trigger:"),
     "__CODEX_MUX_IMAGE_URL__": ("Ija", "function Ija("),
+    "__CODEX_MUX_INTL__": ("pd", "function pd()"),
 }
 
-# ASAR 内に取り込まず展開したまま残す必要があるネイティブモジュール。
+# Message ids for the injected UI. They do not exist in the official locale bundles,
+# so translations are inserted for the languages that have them. Everything else falls
+# back to defaultMessage, which is English.
+MESSAGE_ID_PREFIX = "codexMux."
+TRANSLATION_ROOT = PROJECT_ROOT / "ui" / "messages"
+
+# The depletion alerts use official message ids, and those ids already have official
+# translations. formatjs prefers a translation over defaultMessage, so the id has to be
+# replaced with ours or the injected wording never appears.
+DEPLETION_MESSAGE_ID = f"{MESSAGE_ID_PREFIX}allSubscriptionsDepleted"
+DEPLETION_DEFAULT_MESSAGE = "All connected subscriptions are depleted"
+DEPLETION_ALERTS = (
+    ("codex.rateLimitResetPurchaseModal.title", "You’re out of usage"),
+    ("codex.upsellBanner.merged.title", "You’re out of Codex and Work usage"),
+    (
+        "codex.upsellBanner.merged.workspaceUsage.title",
+        "You’ve used all Codex and Work usage",
+    ),
+    (
+        "codex.upsellBanner.merged.legacy.headline.noReset",
+        "You’ve reached your usage limit",
+    ),
+)
+
+# Native modules that must stay unpacked rather than being absorbed into the ASAR.
 ASAR_UNPACK_DIRECTORIES = "node_modules/{@worklouder,better-sqlite3,node-pty}"
 REQUIRED_UNPACKED_MODULE = (
     "unpack : /node_modules/better-sqlite3/build/Release/better_sqlite3.node"
@@ -60,7 +86,7 @@ REQUIRED_UNPACKED_MODULE = (
 
 
 def lists_unpacked_module(listing: str) -> bool:
-    """`asar list --is-pack` の区切り文字は OS 依存なので正規化して判定する。"""
+    """Normalize separators: `asar list --is-pack` uses the platform separator."""
     return REQUIRED_UNPACKED_MODULE in listing.replace("\\", "/")
 
 
@@ -73,18 +99,18 @@ def parse_args() -> argparse.Namespace:
         "--source",
         type=Path,
         default=None,
-        help="公式アプリの app ディレクトリ。省略時は MSIX パッケージを自動検出する。",
+        help="The official app directory. Detected from the MSIX package when omitted.",
     )
     parser.add_argument("--destination", type=Path, default=DEFAULT_DESTINATION)
     parser.add_argument(
         "--force",
         action="store_true",
-        help="既存のインストール先を復元可能なバックアップへ退避してから置き換える。",
+        help="Replace an existing destination after moving it to a recoverable backup.",
     )
     parser.add_argument(
         "--allow-untested-source",
         action="store_true",
-        help="バージョンまたは app.asar ハッシュの不一致を明示的に許容する。",
+        help="Continue after an explicit version or app.asar hash mismatch.",
     )
     return parser.parse_args()
 
@@ -99,7 +125,7 @@ def output(command: list[str]) -> str:
 
 def require_tool(name: str) -> None:
     if shutil.which(name) is None:
-        raise RuntimeError(f"必要なツールが見つからない: {name}")
+        raise RuntimeError(f"required tool not found: {name}")
 
 
 def powershell(script: str) -> str:
@@ -118,12 +144,12 @@ def powershell(script: str) -> str:
 
 
 def quote_for_powershell(value: object) -> str:
-    """PowerShell の単一引用符文字列として安全に埋め込む。"""
+    """Quote a value safely as a PowerShell single-quoted string."""
     return "'" + str(value).replace("'", "''") + "'"
 
 
 def locate_official_app() -> tuple[Path, str]:
-    """インストール済み MSIX から公式アプリの app ディレクトリを特定する。"""
+    """Locate the official app directory from the installed MSIX package."""
     raw = powershell(
         f"$p = Get-AppxPackage -Name {PACKAGE_NAME} | "
         "Sort-Object Version | Select-Object -Last 1; "
@@ -131,18 +157,18 @@ def locate_official_app() -> tuple[Path, str]:
     )
     if not raw or "|" not in raw:
         raise RuntimeError(
-            f"公式 ChatGPT デスクトップ (MSIX パッケージ {PACKAGE_NAME}) が見つからない。"
-            "先に Microsoft Store から導入する"
+            f"the official ChatGPT desktop (MSIX package {PACKAGE_NAME}) was not found; "
+            "install it from the Microsoft Store first"
         )
     install_location, version = raw.split("|", 1)
     app_directory = Path(install_location) / "app"
     if not (app_directory / "resources" / "app.asar").is_file():
-        raise RuntimeError(f"想定した公式アプリ構成ではない: {app_directory}")
+        raise RuntimeError(f"not the expected official app layout: {app_directory}")
     return app_directory, version.strip()
 
 
 def source_version(app_directory: Path) -> str:
-    """MSIX の AppxManifest からバージョンを読む。--source 指定時に使う。"""
+    """Read the version from the MSIX AppxManifest. Used when --source is given."""
     manifest = app_directory.parent / "AppxManifest.xml"
     if manifest.is_file():
         text = manifest.read_text(encoding="utf-8", errors="replace")
@@ -167,7 +193,7 @@ def ensure_components_are_stopped(destination: Path) -> None:
         f"$_.ExecutablePath -like {marker} }}).Count"
     )
     if running.isdigit() and int(running) > 0:
-        raise RuntimeError(f"起動中のコンポーネントを終了してから再実行する: {destination}")
+        raise RuntimeError(f"quit the running component before replacing it: {destination}")
 
 
 def ensure_asar_tool() -> Path:
@@ -180,30 +206,30 @@ def ensure_asar_tool() -> Path:
         "devDependencies"
     ]["@electron/asar"]
     if not asar.exists() or not manifest.is_file():
-        raise RuntimeError("先に `npm ci --ignore-scripts` を実行する")
+        raise RuntimeError("run `npm ci --ignore-scripts` before patching")
     actual = json.loads(manifest.read_text(encoding="utf-8")).get("version")
     if actual != expected:
         raise RuntimeError(
-            f"@electron/asar のバージョンが {actual!r} で期待値 {expected!r} と異なる。"
-            "`npm ci --ignore-scripts` を実行する"
+            f"installed @electron/asar is {actual!r}, expected {expected!r}; "
+            "run `npm ci --ignore-scripts`"
         )
     return asar
 
 
 def restrict_to_current_user(path: Path) -> None:
-    """継承 ACL を切り、現在のユーザーだけがアクセスできる状態にする。
+    """Break ACL inheritance so only the current user can reach the path.
 
-    ACL の変更は環境によっては特権 (SeSecurityPrivilege) を要求され失敗する。
-    `%USERPROFILE%` 配下は既定で当該ユーザーのみに制限されているため、失敗しても
-    導入自体は続行し、強化できなかったことを警告する。
+    Changing an ACL can require SeSecurityPrivilege and fail in some environments.
+    Everything under %USERPROFILE% is already limited to that user by default, so a
+    failure only warns instead of stopping the install.
     """
     target = quote_for_powershell(path)
     try:
         _restrict_to_current_user(target)
     except subprocess.CalledProcessError:
         print(
-            f"警告: {path} の ACL を強化できなかった。"
-            "%USERPROFILE% 既定の権限のままとなる。",
+            f"Warning: could not harden the ACL on {path}; "
+            "it keeps the default %USERPROFILE% permissions.",
             file=sys.stderr,
         )
 
@@ -230,8 +256,9 @@ def _restrict_to_current_user(target: str) -> None:
 
 
 def load_or_create_token() -> str:
-    # ACL は新規作成時にだけ設定する。既存の状態ルートを書き換えると、公式アプリが
-    # Windows サンドボックス用に追加する権限 (CodexSandboxUsers) を消してしまう。
+    # Only set the ACL when creating the root. Rewriting an existing state root would
+    # strip the permission the official app adds for its Windows sandbox
+    # (CodexSandboxUsers).
     created = not DEFAULT_STATE_ROOT.exists()
     DEFAULT_STATE_ROOT.mkdir(parents=True, exist_ok=True)
     if created:
@@ -240,7 +267,7 @@ def load_or_create_token() -> str:
     if token_path.exists():
         token = token_path.read_text(encoding="utf-8").strip()
         if re.fullmatch(r"[0-9a-f]{64}", token) is None:
-            raise RuntimeError(f"制御トークンが不正: {token_path}")
+            raise RuntimeError(f"invalid control token at {token_path}")
         return token
     token = secrets.token_hex(32)
     descriptor = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -271,36 +298,36 @@ def replace_once(text: str, anchor: str, replacement: str, description: str) -> 
     occurrences = text.count(anchor)
     if occurrences != 1:
         raise RuntimeError(
-            f"{description}を一意に特定できない (一致 {occurrences} 件)。"
-            "公式ビルドの構成が変わった可能性がある"
+            f"could not uniquely locate {description} ({occurrences} matches); "
+            "the official build layout may have changed"
         )
     return text.replace(anchor, replacement, 1)
 
 
 def bind_renderer_identifiers(component: str, bundle: str) -> str:
-    """注入する UI のプレースホルダを、公式ビルド側の識別子へ結び付ける。
+    """Bind the injected UI's placeholders to identifiers in the official build.
 
-    識別子は minify 結果に依存するため、宣言の存在を確認できない場合は停止する。
-    未束縛のプレースホルダを残したまま注入すると、レンダラーが実行時に落ちる。
+    The identifiers depend on the minifier, so stop when a declaration cannot be
+    confirmed. Injecting an unbound placeholder crashes the renderer at runtime.
     """
     for placeholder, (identifier, declaration) in RENDERER_BINDINGS.items():
         if declaration not in bundle:
             raise RuntimeError(
-                f"注入 UI が必要とする識別子 {identifier} の宣言 ({declaration}) が"
-                "公式ビルドに見つからない。上流の構成が変わった可能性がある"
+                f"the declaration ({declaration}) of {identifier}, required by the injected UI, "
+                "was not found in the official build; upstream may have changed"
             )
         component = component.replace(placeholder, identifier)
 
     remaining = re.findall(r"__CODEX_MUX_[A-Z_]+__", component)
     if remaining:
-        raise RuntimeError(f"未束縛のプレースホルダが残っている: {sorted(set(remaining))}")
+        raise RuntimeError(f"unbound placeholders remain: {sorted(set(remaining))}")
     return component
 
 
 def single_asset(directory: Path, pattern: str, description: str) -> Path:
     matches = sorted(directory.glob(pattern))
     if len(matches) != 1:
-        raise RuntimeError(f"{description}が {len(matches)} 件見つかった (1 件であるべき)")
+        raise RuntimeError(f"found {len(matches)} matches for {description}, expected exactly one")
     return matches[0]
 
 
@@ -315,14 +342,14 @@ def patch_renderer(extracted: Path, token: str) -> None:
         index,
         connect_anchor,
         f"{connect_anchor} http://127.0.0.1:{CONTROL_PORT}",
-        "レンダラー CSP の connect-src",
+        "the renderer CSP connect-src",
     )
     index_path.write_text(index, encoding="utf-8")
 
-    bundle_path = single_asset(assets, "app-initial-*.js", "初期レンダラーバンドル")
+    bundle_path = single_asset(assets, "app-initial-*.js", "the initial renderer bundle")
     bundle = bundle_path.read_text(encoding="utf-8")
     if "function CodexMuxAccountMenu(" in bundle:
-        raise RuntimeError("入力アプリに既に多重化メニューが含まれている")
+        raise RuntimeError("the source app already contains the multiplexer menu")
 
     component = (PROJECT_ROOT / "ui" / "account-menu.js").read_text(encoding="utf-8")
     component = component.replace("__CODEX_MUX_CONTROL_PORT__", str(CONTROL_PORT))
@@ -336,7 +363,7 @@ def patch_renderer(extracted: Path, token: str) -> None:
         bundle,
         component_anchor,
         component + "\n" + component_anchor,
-        "ネイティブのプロフィールメニューコンポーネント",
+        "the native profile menu component",
     )
 
     bundle = replace_once(
@@ -344,7 +371,7 @@ def patch_renderer(extracted: Path, token: str) -> None:
         "let e=await F_.safeGet(`/wham/profiles/me`)",
         "let e=await codexMuxProfileData("
         "globalThis.__codexMuxSelectedProfileAccountId??null)",
-        "ネイティブのプロフィール統計リクエスト",
+        "the native profile stats request",
     )
 
     usage_modal_anchor = "function hsc(e){let t=(0,_sc.c)(28),{defaultResetCreditsOpen:n,"
@@ -353,7 +380,7 @@ def patch_renderer(extracted: Path, token: str) -> None:
         usage_modal_anchor,
         "function hsc(e){CodexMuxUseResetAccountState();"
         "let t=(0,_sc.c)(28),{defaultResetCreditsOpen:n,",
-        "ネイティブの使用量モーダル",
+        "the native usage modal",
     )
 
     reset_query_anchor = (
@@ -370,7 +397,7 @@ def patch_renderer(extracted: Path, token: str) -> None:
         "queryKey:[`rate-limit-reset-credits`,e??`primary`],"
         "queryFn:e?()=>codexMuxRateLimitResets(e):ECa,"
         "refetchInterval:Dp.ONE_MINUTE,staleTime:Dp.FIVE_SECONDS})}",
-        "ネイティブのリセットクレジット取得クエリ",
+        "the native reset-credit query",
     )
 
     reset_mutation_anchor = (
@@ -392,21 +419,21 @@ def patch_renderer(extracted: Path, token: str) -> None:
         "if(o===`reset`||o===`already_redeemed`){let t=o===`reset`?"
         "n.credit?.id??a:a;e.setQueryData(r,e=>ZSa(e,o,t))}"
         "Promise.all([t([`rate-limit-status`]),t(r)])}})}",
-        "ネイティブのリセットクレジット消費ミューテーション",
+        "the native reset-credit mutation",
     )
 
     bundle = replace_once(
         bundle,
         "let y=v;if(g!=null){",
         "let y=window.__codexMuxSelectedUsageWindows??v;if(g!=null){",
-        "ネイティブの使用量ウィンドウ選択",
+        "the native usage-window selection",
     )
 
     bundle = replace_once(
         bundle,
         "usageItems:Ct",
         "usageItems:(0,e7.jsx)(CodexMuxAccountMenu,{})",
-        "ネイティブの使用量メニュースロット",
+        "the native usage menu slot",
     )
 
     open_change_anchors = (
@@ -420,34 +447,92 @@ def patch_renderer(extracted: Path, token: str) -> None:
             anchor.replace(
                 original, f"onOpenChange:CodexMuxProfileMenuOpenChange({variable})"
             ),
-            "ネイティブのプロフィールメニュー開閉フック",
+            "a native profile menu open-state hook",
         )
 
-    depleted_message = "接続中のすべてのサブスクリプションの利用枠を使い切りました"
-    depleted_alert_anchors = (
-        "defaultMessage:`You’re out of Codex and Work usage`",
-        "defaultMessage:`You’ve used all Codex and Work usage`",
-        "defaultMessage:`You’ve reached your usage limit`",
-        "defaultMessage:`You’re out of usage`",
-    )
-    for anchor in depleted_alert_anchors:
+    for message_id, default_message in DEPLETION_ALERTS:
         bundle = replace_once(
             bundle,
-            anchor,
-            f"defaultMessage:`{depleted_message}`",
-            "ネイティブの利用枠切れアラート",
+            f"id:`{message_id}`,defaultMessage:`{default_message}`",
+            f"id:`{DEPLETION_MESSAGE_ID}`,defaultMessage:`{DEPLETION_DEFAULT_MESSAGE}`",
+            "a native subscription depletion alert",
         )
     bundle_path.write_text(bundle, encoding="utf-8")
     patch_profile_page(assets)
+    patch_locale_messages(assets)
+
+
+def patch_locale_messages(assets: Path) -> None:
+    """Insert the injected UI's translations into the official locale bundles.
+
+    The official app looks a message id up in each language's dictionary and falls back
+    to defaultMessage when it is missing. Adding our ids to the dictionaries we have
+    translations for gives the injected UI the same behaviour: translated where a
+    translation exists, English everywhere else.
+    """
+    if not TRANSLATION_ROOT.is_dir():
+        raise RuntimeError(f"translation directory not found: {TRANSLATION_ROOT}")
+
+    translated = sorted(TRANSLATION_ROOT.glob("*.json"))
+    if not translated:
+        raise RuntimeError("no translation files were found")
+
+    for translation_path in translated:
+        locale = translation_path.stem
+        messages = json.loads(translation_path.read_text(encoding="utf-8"))
+        unexpected = [key for key in messages if not key.startswith(MESSAGE_ID_PREFIX)]
+        if unexpected:
+            raise RuntimeError(
+                f"{translation_path.name} contains unexpected message ids: {unexpected[:3]}"
+            )
+        bundle_path = single_asset(
+            assets, f"{locale}-*.js", f"the {locale} locale bundle"
+        )
+        bundle_path.write_text(
+            insert_locale_messages(
+                bundle_path.read_text(encoding="utf-8"), messages, locale
+            ),
+            encoding="utf-8",
+        )
+    print(f"Injected translations into: {', '.join(path.stem for path in translated)}")
+
+
+def insert_locale_messages(bundle: str, messages: dict[str, str], locale: str) -> str:
+    """Add translations to a locale bundle's message dictionary.
+
+    The dictionary is assigned to the variable published by `export{<var> as default}`.
+    Its values are template literals, so write ours as JSON strings to keep ICU braces
+    from being read as interpolation.
+    """
+    exported = re.search(r"export\s*\{\s*([A-Za-z_$][\w$]*)\s+as\s+default\b", bundle)
+    if exported is None:
+        raise RuntimeError(f"{locale}: could not identify the message dictionary variable")
+    variable = exported.group(1)
+
+    anchor = f"{variable}={{"
+    if bundle.count(anchor) != 1:
+        raise RuntimeError(
+            f"{locale}: could not uniquely locate the message dictionary "
+            f"({bundle.count(anchor)} matches)"
+        )
+    if MESSAGE_ID_PREFIX in bundle:
+        raise RuntimeError(f"{locale}: the injected UI translations are already present")
+
+    entries = "".join(
+        f"{json.dumps(key, ensure_ascii=False)}:"
+        f"{json.dumps(value, ensure_ascii=False)},"
+        for key, value in messages.items()
+    )
+    return bundle.replace(anchor, anchor + entries, 1)
 
 
 def patch_profile_page(assets: Path) -> None:
-    """プロフィール設定が合算であることを示す。
+    """Show that the profile page covers every subscription.
 
-    統計は全サブスクリプションの合算だが、ヘッダーは単一アカウントの識別情報を
-    出すため合算だと分からない。接続が 2 件以上のときだけ差し替える。
+    The statistics are already pooled, but the header shows one account's identity, so
+    the page reads as a single account. Only replace it when two or more are connected.
     """
-    bundle_path = single_asset(assets, "profile-*.js", "プロフィール設定バンドル")
+    bundle_path = single_asset(assets, "profile-*.js", "the Profile settings bundle")
     bundle = bundle_path.read_text(encoding="utf-8")
 
     replacements = (
@@ -457,25 +542,25 @@ def patch_profile_page(assets: Path) -> None:
             "avatar:globalThis.CodexMuxProfileAvatarStack?.()??"
             '(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`label`,'
             '{"aria-disabled":I.isPending,',
-            "プロフィールのアバター",
+            "the Profile avatar",
         ),
         (
             "displayName:et??(0,$.jsx)(J,{id:`profile.nameFallback`",
             "displayName:globalThis.CodexMuxProfileDisplayName?.()??et??"
             "(0,$.jsx)(J,{id:`profile.nameFallback`",
-            "プロフィールの表示名",
+            "the Profile display name",
         ),
         (
             "username:Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
             "username:globalThis.CodexMuxProfileUsername?.()??"
             "(Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
-            "プロフィールのユーザー名",
+            "the Profile username",
         ),
     )
     for anchor, replacement, description in replacements:
         bundle = replace_once(bundle, anchor, replacement, description)
 
-    # username は三項演算子を包み直したため、対応する括弧を閉じる。
+    # The username replacement wrapped a conditional, so close the extra parenthesis.
     username_tail = (
         "description:`Profile username shown with an at-sign prefix`,"
         "values:{username:Qe}})"
@@ -484,15 +569,15 @@ def patch_profile_page(assets: Path) -> None:
         bundle,
         username_tail,
         username_tail + ")",
-        "プロフィールのユーザー名の閉じ括弧",
+        "the Profile username closing parenthesis",
     )
     bundle_path.write_text(bundle, encoding="utf-8")
 
 
 def patch_desktop_profile(extracted: Path) -> None:
-    """コピーしたアプリに専用のユーザーデータ領域と診断ブリッジを与える。"""
+    """Give the copied app its own user data area and the diagnostic bridge."""
     build = extracted / ".vite" / "build"
-    bootstrap_path = single_asset(build, "bootstrap-*.js", "ブートストラップバンドル")
+    bootstrap_path = single_asset(build, "bootstrap-*.js", "the bootstrap bundle")
     bootstrap = bootstrap_path.read_text(encoding="utf-8")
 
     profile_pattern = re.compile(
@@ -511,10 +596,10 @@ def patch_desktop_profile(extracted: Path) -> None:
 
     bootstrap, replacements = profile_pattern.subn(replacement, bootstrap, count=1)
     if replacements != 1:
-        raise RuntimeError("コピーしたデスクトッププロファイルを分離できない")
+        raise RuntimeError("could not isolate the copied desktop profile")
     bootstrap_path.write_text(bootstrap, encoding="utf-8")
 
-    main_path = single_asset(build, "main-*.js", "メインプロセスバンドル")
+    main_path = single_asset(build, "main-*.js", "the desktop main bundle")
     main = main_path.read_text(encoding="utf-8")
     strict_computer_use_instruction = (
         "Control desktop apps on Windows through Computer Use via node_repl and "
@@ -526,7 +611,7 @@ def patch_desktop_profile(extracted: Path) -> None:
         main,
         "Control desktop apps on macOS through Computer Use.",
         strict_computer_use_instruction,
-        "Computer Use のツール指示",
+        "the Computer Use tool instruction",
     )
 
     shutil.copy2(PROJECT_ROOT / "ui" / "ui-test-bridge.cjs", build / "ui-test-bridge.cjs")
@@ -538,10 +623,10 @@ def patch_desktop_profile(extracted: Path) -> None:
 
 
 def patch_owl_configuration(staged_app: Path) -> None:
-    """owl シェルのユーザーデータ名を独立させ、公式アプリと衝突させない。"""
+    """Give the owl shell its own user data name so it cannot collide with the official app."""
     ini_path = staged_app / "resources" / "owl-app.ini"
     if not ini_path.is_file():
-        raise RuntimeError("owl-app.ini が見つからない")
+        raise RuntimeError("owl-app.ini was not found")
     ini = ini_path.read_text(encoding="utf-8")
     updated, replacements = re.subn(
         r"^UserDataDirectoryName=.*$",
@@ -551,7 +636,7 @@ def patch_owl_configuration(staged_app: Path) -> None:
         flags=re.MULTILINE,
     )
     if replacements != 1:
-        raise RuntimeError("owl-app.ini の UserDataDirectoryName を書き換えられない")
+        raise RuntimeError("could not rewrite UserDataDirectoryName in owl-app.ini")
     ini_path.write_text(updated, encoding="utf-8")
 
 
@@ -589,9 +674,9 @@ def copy_official_app(source: Path, staged: Path) -> None:
         ],
         check=False,
     )
-    # robocopy は 0-7 が成功、8 以上が失敗を表す。
+    # robocopy reports success as 0-7 and failure as 8 or above.
     if result.returncode >= 8:
-        raise RuntimeError(f"公式アプリのコピーに失敗した (robocopy {result.returncode})")
+        raise RuntimeError(f"could not copy the official app (robocopy {result.returncode})")
 
 
 def resolve_source(source: Path | None) -> tuple[Path, str]:
@@ -599,25 +684,25 @@ def resolve_source(source: Path | None) -> tuple[Path, str]:
         return locate_official_app()
     resolved = source.expanduser().resolve()
     if not (resolved / "resources" / "app.asar").is_file():
-        raise RuntimeError(f"公式アプリの app ディレクトリではない: {resolved}")
+        raise RuntimeError(f"not an official app directory: {resolved}")
     return resolved, source_version(resolved)
 
 
 def verify_source(source: Path, version: str, allow_untested_source: bool) -> None:
-    print("公式アプリの app.asar を検証中…")
+    print("Verifying the official app.asar…")
     digest = file_digest(source / "resources" / "app.asar")
     expected = TESTED_SOURCE_BUILDS.get(version)
-    print(f"公式 ChatGPT バージョン: {version}, app.asar {digest}")
+    print(f"Official ChatGPT version: {version}, app.asar {digest}")
     if expected == digest:
         return
     if not allow_untested_source:
         raise RuntimeError(
-            "公式アプリのバージョンまたは app.asar ハッシュが検証済みの値と一致しない。"
-            "上流の変更を確認するか --allow-untested-source を明示的に指定する"
+            "the official version or app.asar hash is not approved; review the upstream "
+            "change or pass --allow-untested-source"
         )
     print(
-        "警告: 未検証の公式ビルドで続行する。"
-        "期待するアンカーが全て一致する場合のみパッチは継続する。",
+        "Warning: continuing with an unverified official build; the patch continues "
+        "only while every expected anchor matches.",
         file=sys.stderr,
     )
 
@@ -629,16 +714,16 @@ def patch_app(
     allow_untested_source: bool,
 ) -> None:
     if sys.platform != "win32":
-        raise RuntimeError("このパッチャーは Windows 専用")
+        raise RuntimeError("this patcher is Windows only")
 
     source, version = resolve_source(source)
     destination = destination.expanduser().resolve()
     if source == destination:
-        raise RuntimeError("入力と出力は別である必要がある。公式アプリは決して変更しない")
+        raise RuntimeError("source and destination must differ; the official app is never patched")
     if destination.exists() and not force:
         raise RuntimeError(
-            f"インストール先が既に存在する: {destination} "
-            "(--force で復元可能なバックアップを作成して置き換える)"
+            f"destination exists: {destination} "
+            "(pass --force to create a recoverable backup)"
         )
 
     verify_source(source, version, allow_untested_source)
@@ -661,18 +746,18 @@ def patch_app(
         proxy = temporary_path / "codex-mux.exe"
         launcher = temporary_path / LAUNCHER_NAME
 
-        print("多重化プロキシをビルド中…")
+        print("Building the multiplexer…")
         build_go_binary("./cmd/codex-mux", proxy)
-        print("ランチャーをビルド中…")
+        print("Building the launcher…")
         build_go_binary("./cmd/launcher", launcher, "-H=windowsgui")
 
-        print("公式アプリをコピー中…")
+        print("Copying the official app…")
         copy_official_app(source, staged_app)
 
         resources = staged_app / "resources"
         original_asar = resources / "app.asar"
 
-        print("デスクトッププロファイルとレンダラーをパッチ中…")
+        print("Patching the desktop profile and renderer…")
         run([str(asar), "extract", str(original_asar), str(extracted)])
         patch_desktop_profile(extracted)
         patch_renderer(extracted, token)
@@ -690,12 +775,12 @@ def patch_app(
         )
         listing = output([str(asar), "list", "--is-pack", str(repacked_asar)])
         if not lists_unpacked_module(listing):
-            raise RuntimeError("ネイティブ ASAR モジュールが展開状態で保持されていない")
+            raise RuntimeError("native ASAR modules were not kept unpacked")
         shutil.copy2(repacked_asar, original_asar)
 
         repacked_unpacked = temporary_path / "app.asar.unpacked"
         if not repacked_unpacked.is_dir():
-            raise RuntimeError("ASAR の pack がネイティブモジュールを展開しなかった")
+            raise RuntimeError("ASAR pack did not produce its unpacked native tree")
         shutil.copytree(
             repacked_unpacked, resources / "app.asar.unpacked", dirs_exist_ok=True
         )
@@ -703,9 +788,9 @@ def patch_app(
         bundled_codex = resources / "codex.exe"
         real_codex = resources / "codex.real.exe"
         if real_codex.exists():
-            raise RuntimeError("入力アプリに既に codex.real.exe が含まれている")
+            raise RuntimeError("the source app already contains codex.real.exe")
         if not bundled_codex.is_file():
-            raise RuntimeError("公式アプリに codex.exe が見つからない")
+            raise RuntimeError("codex.exe was not found in the official app")
         bundled_codex.rename(real_codex)
         shutil.copy2(proxy, bundled_codex)
 
@@ -720,7 +805,7 @@ def patch_app(
         try:
             if had_app:
                 destination.rename(app_backup)
-                print(f"既存のコピーを {app_backup} へ退避した")
+                print(f"Existing copy moved to {app_backup}")
             staged_app.rename(destination)
         except OSError:
             if app_backup.exists() and not destination.exists():
@@ -737,7 +822,7 @@ def main() -> int:
     try:
         patch_app(args.source, args.destination, args.force, args.allow_untested_source)
     except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
-        print(f"パッチ失敗: {error}", file=sys.stderr)
+        print(f"patch failed: {error}", file=sys.stderr)
         return 1
     return 0
 

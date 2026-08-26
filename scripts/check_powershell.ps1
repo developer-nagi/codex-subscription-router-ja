@@ -1,10 +1,10 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    リポジトリ内の PowerShell スクリプトを構文検査する。
+    Check the syntax of the PowerShell scripts in this repository.
 .DESCRIPTION
-    Windows PowerShell 5.1 は BOM の無い UTF-8 を ANSI として読むため、
-    非 ASCII を含むスクリプトには BOM が必要になる。構文と併せて検査する。
+    Windows PowerShell 5.1 reads UTF-8 without a BOM as ANSI, so a script containing
+    non-ASCII characters needs one. Check that alongside the syntax.
 #>
 
 Set-StrictMode -Version Latest
@@ -22,7 +22,7 @@ foreach ($script in $scripts) {
     $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
     $isAscii = -not ($bytes | Where-Object { $_ -gt 0x7F })
     if (-not $hasBom -and -not $isAscii) {
-        Write-Host "NG  $relative : 非 ASCII を含むため UTF-8 BOM が必要"
+        Write-Host "FAIL  $relative : needs a UTF-8 BOM because it contains non-ASCII"
         $failed = $true
         continue
     }
@@ -30,7 +30,7 @@ foreach ($script in $scripts) {
     $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$null, [ref]$errors)
     if ($errors -and $errors.Count -gt 0) {
-        Write-Host "NG  $relative"
+        Write-Host "FAIL  $relative"
         $errors | ForEach-Object { Write-Host "      $($_.Message)" }
         $failed = $true
         continue
@@ -40,7 +40,7 @@ foreach ($script in $scripts) {
 }
 
 if ($failed) {
-    Write-Error 'PowerShell スクリプトの検査に失敗した'
+    Write-Error 'PowerShell script check failed'
     exit 1
 }
 

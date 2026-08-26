@@ -129,12 +129,12 @@ func (m *Multiplexer) RemoveAccount(ctx context.Context, id string) error {
 		return fmt.Errorf("account %q not found", id)
 	}
 	if account.Controller {
-		return errors.New("プライマリのサブスクリプションは削除できません")
+		return errors.New("the Primary subscription cannot be removed")
 	}
 	if child, ok := m.child(id); ok {
 		_ = child.Close()
-		// Windows は終了していないプロセスが握るディレクトリを移動できない。
-		// Close は終了要求にすぎないため、実際に終了するまで待つ。
+		// Windows cannot move a directory that a running process still holds.
+		// Close only asks the process to stop, so wait until it actually exits.
 		waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		_ = child.Wait(waitCtx)
 		cancel()

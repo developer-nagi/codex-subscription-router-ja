@@ -1,22 +1,23 @@
-# 告知
+# Notices
 
-## 派生元
+## Derivation
 
-本リポジトリは Bennett Blackham 氏による
-[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router) の fork である。
-オリジナルは MIT License で提供されており、`LICENSE` の著作権表示はオリジナルのものを保持している。
-本 fork はプラットフォームを macOS から Windows へ置き換え、日本語化したものであり、
-多重化アーキテクチャ、利用枠を考慮したルーティング、アカウント隔離、fail-closed のパッチ方針は
-上流の設計を受け継いでいる。
+This repository is a fork of
+[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router) by
+Bennett Blackham. The original is provided under the MIT License, and the copyright
+notice in `LICENSE` is kept as the original author's. This fork replaces the platform,
+moving from macOS to Windows. The multiplexing architecture, quota-aware routing, account
+isolation, and fail-closed patching policy are inherited from upstream's design.
 
-## 公式アプリの扱い
+## The official app
 
-本リポジトリにはパッチ処理と多重化のオリジナルのソースのみを含む。公式 ChatGPT アプリケーション、
-その ASAR アーカイブ、埋め込みネイティブサービス、その他の OpenAI バイナリを含まず、
-再配布に用いてはならない。
+This repository contains original patching and multiplexing source only. It does not
+include, and must not be used to redistribute, the official ChatGPT application, its ASAR
+archive, embedded native services, or other OpenAI binaries.
 
-ChatGPT、Codex、OpenAI および関連する名称と商標は OpenAI に帰属する。本リポジトリでの使用は
-互換性を示す目的に限られ、提携、推奨、サポートを意味しない。
+ChatGPT, Codex, OpenAI, and related names and marks belong to OpenAI. Their use here
+identifies compatibility only and does not imply affiliation, endorsement, or support.
 
-ビルド処理は、利用者が別途入手したソフトウェアのローカルコピーを変更する。そのソフトウェアと
-接続する各サブスクリプションに適用されるライセンスおよび規約の遵守は利用者の責任である。
+The build process modifies a local copy of software supplied separately by the user. The
+user is responsible for complying with the licenses and terms that apply to that software
+and to each connected subscription.

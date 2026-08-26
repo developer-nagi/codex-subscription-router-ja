@@ -1,44 +1,56 @@
-# 実機確認チェックリスト
+# Smoke test
 
-リリース草稿を公開する前に、`docs/COMPATIBILITY.md` に記録した公式ビルドで以下を確認する。
+Complete this checklist on the exact official build recorded in
+`docs/COMPATIBILITY.md` before publishing a release draft.
 
-## ビルドと同一性
+## Build and identity
 
-- パッチャーが想定どおりの公式バージョンと `app.asar` SHA-256 を表示すること。
-- 公式 MSIX パッケージが変更されていないこと (`app.asar` のハッシュが一致)。
-- `resources\codex.exe` が多重化プロキシに、`resources\codex.real.exe` が公式バイナリに
-  なっていること。
-- `resources\codex.exe --help` が公式 CLI のヘルプを表示すること (素通しの確認)。
-- `resources\owl-app.ini` の `UserDataDirectoryName` が独立した名前であること。
-- `app.asar.unpacked\node_modules` に `@worklouder`、`better-sqlite3`、`node-pty` が残ること。
+- The patcher reports the expected official version and `app.asar` SHA-256.
+- The official MSIX package is unchanged: its `app.asar` hash still matches.
+- `resources\codex.exe` is the multiplexer and `resources\codex.real.exe` is the official
+  binary.
+- `resources\codex.exe --help` prints the official CLI help, confirming passthrough.
+- `UserDataDirectoryName` in `resources\owl-app.ini` is the independent name.
+- `app.asar.unpacked\node_modules` still contains `@worklouder`, `better-sqlite3`, and
+  `node-pty`.
 
-## 起動とルーティング
+## Launch and routing
 
-- スタートメニューのショートカットからアプリが起動し、ウィンドウが表示されること。
-- `resources\codex.exe ... app-server` が起動し、その子として `codex.real.exe` が
-  アカウントごとに起動すること。
-- `http://127.0.0.1:48123/v1/health` が `{"ok":true}` を返すこと。
-- 制御トークン付きの `/v1/accounts` が接続済みアカウントを返し、日本語ラベルが
-  正しい UTF-8 で返ること。
-- サブスクリプションを 2 つ以上接続し、写真・プラン・マスクされたメール・合算利用量・
-  読み込み中表示を確認すること。
-- 各アカウントに 1 つずつ行き渡るまでチャットを開始し、続きの発言が常に元のアカウントへ
-  送られること。
-- 1 アカウントを枯渇状態にして、別の余力あるアカウントでスレッドが継続すること。
-  全アカウントを枯渇させて、合算アラートが日本語で表示されること。
-- 利用枠のリセットシートを開き、サブスクリプションを切り替えてリセットを消費し、
-  選択したアカウントだけが変化すること。
+- The Start Menu shortcut launches the app and a window appears.
+- `resources\codex.exe ... app-server` starts, and one `codex.real.exe` child starts per
+  account.
+- `http://127.0.0.1:48123/v1/health` returns `{"ok":true}`.
+- `/v1/accounts` with the control token lists the connected accounts.
+- Connect two or more subscriptions and confirm photos, plans, masked emails, pooled
+  usage, and loading states.
+- Start chats until each account has received one; confirm every follow-up stays on its
+  original account.
+- Spoof one depleted account and confirm the thread continues on an account with quota.
+  Spoof all accounts depleted and confirm the combined alert.
+- Open a quota-triggered reset sheet, switch subscriptions, consume a reset, and confirm
+  only the selected account changes.
 
-## 公式アプリとの共存
+## Subscriptions
 
-- 公式 ChatGPT デスクトップアプリを同時に起動しても、双方が独立して動作すること。
-- 公式アプリのプロファイル `%APPDATA%\Codex` が変更されないこと。
+- Add a subscription with a device code, and add one by importing an `auth.json`.
+- In Manage subscriptions, remove a non-Primary account and confirm its Codex home moved
+  to `%USERPROFILE%\.codex-mux\backups\accounts`.
+- Confirm the Primary subscription cannot be removed.
+- Confirm an account whose sign-in never finished is listed while managing, so it can be
+  cleared.
 
-## 再ビルド
+## Localization
 
-- `--force` で再ビルドし、既存インストールが `%USERPROFILE%\.codex-mux\backups` へ
-  退避されること。
-- 再ビルド後もアカウント状態とスレッド所有が維持されること。
+- Run the app in English and in Japanese and confirm the injected rows follow the display
+  language.
+- Confirm that no `MISSING_TRANSLATION` warning names a `codexMux.*` id.
 
-確認したコミット、Windows のバージョン、公式アプリのバージョン、逸脱があればその内容を
-リリース草稿に記録してから公開する。
+## Coexistence and rebuild
+
+- The official ChatGPT desktop runs at the same time and both behave independently.
+- The official profile at `%APPDATA%\Codex` is unchanged.
+- Rebuild with `--force`: the previous installation moves to
+  `%USERPROFILE%\.codex-mux\backups`, and account state and thread ownership survive.
+
+Record the tested commit, the Windows version, the official app version, and any
+deviations in the release draft before publishing it.

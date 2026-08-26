@@ -121,9 +121,9 @@ func TestDeleteAccountRejectsPrimaryAndBadToken(t *testing.T) {
 	}
 }
 
-// 注入したレンダラーは全ての非公開経路へ X-Codex-Mux-Token を付ける。CORS の
-// preflight でこのヘッダーを許可しないと、アカウント UI からの通信が全て失敗する。
-// 上流 PR #21 はこのヘッダーを取りこぼしていたため、回帰を検知できるようにする。
+// The injected renderer sends X-Codex-Mux-Token on every private route. If the
+// CORS preflight does not allow that header, every request from the account UI
+// fails. Upstream PR #21 dropped the header, so guard against the regression.
 func TestPreflightAllowsControlTokenHeader(t *testing.T) {
 	url, _, _ := newRemoveTestServer(t)
 

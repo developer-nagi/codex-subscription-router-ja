@@ -76,7 +76,7 @@ func Open(root, primaryCodexHome string) (*Store, error) {
 	case errors.Is(err, os.ErrNotExist):
 		store.accounts = []Account{{
 			ID:         "primary",
-			Label:      "プライマリ",
+			Label:      "Primary",
 			CodexHome:  primaryCodexHome,
 			Enabled:    true,
 			Controller: true,
@@ -164,7 +164,7 @@ func (s *Store) AddAccount(label string) (Account, error) {
 func (s *Store) addAccountLocked(label string, authContents []byte) (Account, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
-		label = fmt.Sprintf("サブスクリプション %d", len(s.accounts)+1)
+		label = fmt.Sprintf("Subscription %d", len(s.accounts)+1)
 	}
 	id, err := randomID()
 	if err != nil {
@@ -236,7 +236,7 @@ func (s *Store) RemoveAccount(id string) (Account, error) {
 			continue
 		}
 		if s.accounts[index].Controller || samePath(s.accounts[index].CodexHome, s.primaryCodexHome) {
-			return Account{}, errors.New("プライマリのサブスクリプションは削除できません")
+			return Account{}, errors.New("the Primary subscription cannot be removed")
 		}
 		removed := s.accounts[index]
 		s.accounts = slices.Delete(s.accounts, index, index+1)

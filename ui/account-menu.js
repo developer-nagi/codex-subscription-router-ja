@@ -2,6 +2,248 @@ const CODEX_MUX_API = "http://127.0.0.1:__CODEX_MUX_CONTROL_PORT__/v1";
 const CODEX_MUX_TOKEN = "__CODEX_MUX_CONTROL_TOKEN__";
 let codexMuxLoginActive = false;
 
+// formatjs message descriptors, the same shape the official app uses. A locale
+// bundle's translation wins when present; otherwise defaultMessage (English) is shown.
+// The patcher inserts our translations into the official locale bundles.
+const CODEX_MUX_MESSAGES = {
+  requestFailed: {
+    id: "codexMux.requestFailed",
+    defaultMessage: "Request failed ({status})",
+    description: "Error when a control API request fails",
+  },
+  subscription: {
+    id: "codexMux.subscription",
+    defaultMessage: "Subscription",
+    description: "Label above the subscription picker in the usage sheet",
+  },
+  loadingSubscriptions: {
+    id: "codexMux.loadingSubscriptions",
+    defaultMessage: "Loading subscriptions…",
+    description: "Placeholder while connected subscriptions are fetched",
+  },
+  resetsUnavailable: {
+    id: "codexMux.resetsUnavailable",
+    defaultMessage: "Resets unavailable",
+    description: "Shown when a subscription's reset credits cannot be read",
+  },
+  resetsAvailable: {
+    id: "codexMux.resetsAvailable",
+    defaultMessage:
+      "{count, plural, one {# reset available} other {# resets available}}",
+    description: "Number of banked usage resets for a subscription",
+  },
+  subscriptionLabel: {
+    id: "codexMux.subscriptionLabel",
+    defaultMessage: "Subscription {index}",
+    description: "Default label given to a newly added subscription",
+  },
+  authTooLarge: {
+    id: "codexMux.authTooLarge",
+    defaultMessage: "auth.json must be smaller than 64 KB.",
+    description: "Rejection when an imported auth.json is too large",
+  },
+  authNotObject: {
+    id: "codexMux.authNotObject",
+    defaultMessage: "auth.json must contain one JSON object.",
+    description: "Rejection when an imported auth.json is not a JSON object",
+  },
+  authInvalidJson: {
+    id: "codexMux.authInvalidJson",
+    defaultMessage: "auth.json is not valid JSON.",
+    description: "Rejection when an imported auth.json cannot be parsed",
+  },
+  verificationOpenFailed: {
+    id: "codexMux.verificationOpenFailed",
+    defaultMessage: "The sign-in verification page could not be opened safely.",
+    description: "Error when the device-code verification URL is not trusted",
+  },
+  codeCopyFailed: {
+    id: "codexMux.codeCopyFailed",
+    defaultMessage: "The sign-in code could not be copied.",
+    description: "Error when the device code cannot be copied to the clipboard",
+  },
+  connectingSubscriptions: {
+    id: "codexMux.connectingSubscriptions",
+    defaultMessage: "Connecting subscriptions…",
+    description: "Shown while the account pool is still loading",
+  },
+  connectedCount: {
+    id: "codexMux.connectedCount",
+    defaultMessage:
+      "{count, plural, one {# connected subscription} other {# connected subscriptions}}",
+    description: "How many subscriptions are connected",
+  },
+  usageRemaining: {
+    id: "codexMux.usageRemaining",
+    defaultMessage: "Usage remaining",
+    description: "Pooled weekly allowance row in the profile menu",
+  },
+  signInUnfinished: {
+    id: "codexMux.signInUnfinished",
+    defaultMessage: "Sign-in not finished",
+    description: "Shown for an account whose sign-in never completed",
+  },
+  chatgptSubscription: {
+    id: "codexMux.chatgptSubscription",
+    defaultMessage: "ChatGPT subscription",
+    description: "Fallback description for a connected account",
+  },
+  primary: {
+    id: "codexMux.primary",
+    defaultMessage: "Primary",
+    description: "Marks the subscription that cannot be removed",
+  },
+  remove: {
+    id: "codexMux.remove",
+    defaultMessage: "Remove",
+    description: "Action shown on an account row while managing subscriptions",
+  },
+  removeHint: {
+    id: "codexMux.removeHint",
+    defaultMessage:
+      "Its chats leave this app immediately; the account data is kept in a local backup",
+    description: "Explains what removing a subscription does",
+  },
+  removing: {
+    id: "codexMux.removing",
+    defaultMessage: "Removing…",
+    description: "Shown while a subscription is being removed",
+  },
+  removeConfirm: {
+    id: "codexMux.removeConfirm",
+    defaultMessage: "Remove {label} from this PC",
+    description: "Confirmation row for removing a subscription",
+  },
+  cancel: {
+    id: "codexMux.cancel",
+    defaultMessage: "Cancel",
+    description: "Dismisses the current choice",
+  },
+  removeFailed: {
+    id: "codexMux.removeFailed",
+    defaultMessage: "Could not remove subscription",
+    description: "Shown when removing a subscription fails",
+  },
+  codeCopied: {
+    id: "codexMux.codeCopied",
+    defaultMessage: "Code {code} copied",
+    description: "Shown after the device code is copied",
+  },
+  codeClickToCopy: {
+    id: "codexMux.codeClickToCopy",
+    defaultMessage: "Code {code} · Click to copy",
+    description: "Prompts the user to copy the device code",
+  },
+  finishSignIn: {
+    id: "codexMux.finishSignIn",
+    defaultMessage: "Finish signing in with ChatGPT",
+    description: "Shown while a device-code sign-in is pending",
+  },
+  continueSignIn: {
+    id: "codexMux.continueSignIn",
+    defaultMessage: "Continue sign-in",
+    description: "Opens the verification page for a pending sign-in",
+  },
+  poolUnavailable: {
+    id: "codexMux.poolUnavailable",
+    defaultMessage: "Subscription pool unavailable",
+    description: "Shown when the control API cannot be reached",
+  },
+  deviceCodeHint: {
+    id: "codexMux.deviceCodeHint",
+    defaultMessage: "Sign in with a one-time device code",
+    description: "Describes the device-code way to add a subscription",
+  },
+  working: {
+    id: "codexMux.working",
+    defaultMessage: "Working…",
+    description: "Shown while adding a subscription is in progress",
+  },
+  continueWithChatGPT: {
+    id: "codexMux.continueWithChatGPT",
+    defaultMessage: "Continue with ChatGPT",
+    description: "Starts a device-code sign-in",
+  },
+  importHint: {
+    id: "codexMux.importHint",
+    defaultMessage: "Use an existing Codex login file",
+    description: "Describes the auth.json way to add a subscription",
+  },
+  importAuth: {
+    id: "codexMux.importAuth",
+    defaultMessage: "Import auth.json",
+    description: "Starts an auth.json import",
+  },
+  addSubscription: {
+    id: "codexMux.addSubscription",
+    defaultMessage: "Add another subscription",
+    description: "Opens the choice of how to add a subscription",
+  },
+  done: {
+    id: "codexMux.done",
+    defaultMessage: "Done",
+    description: "Leaves the subscription management mode",
+  },
+  manageSubscriptions: {
+    id: "codexMux.manageSubscriptions",
+    defaultMessage: "Manage subscriptions",
+    description: "Enters the mode where subscriptions can be removed",
+  },
+  showCombinedStats: {
+    id: "codexMux.showCombinedStats",
+    defaultMessage: "Show combined profile stats",
+    description: "Accessible label for the combined profile avatars",
+  },
+  showAccountStats: {
+    id: "codexMux.showAccountStats",
+    defaultMessage: "Show {label} profile stats",
+    description: "Accessible label for one subscription's profile avatar",
+  },
+  selectedProfile: {
+    id: "codexMux.selectedProfile",
+    defaultMessage: "Selected subscription profile",
+    description: "Accessible label when one subscription's profile is shown",
+  },
+  combinedProfile: {
+    id: "codexMux.combinedProfile",
+    defaultMessage: "Combined profile",
+    description: "Name shown when profile stats cover every subscription",
+  },
+  pluginConnections: {
+    id: "codexMux.pluginConnections",
+    defaultMessage: "Plugin connections",
+    description: "Heading of the subscription picker on the Plugins page",
+  },
+  pluginScopeFor: {
+    id: "codexMux.pluginScopeFor",
+    defaultMessage:
+      "Installs are shared. Connection access below is for {label}.",
+    description: "Explains which subscription plugin connections apply to",
+  },
+  pluginScopeNone: {
+    id: "codexMux.pluginScopeNone",
+    defaultMessage:
+      "Installs are shared. Choose a subscription for connection access.",
+    description: "Prompts the user to pick a subscription for plugin access",
+  },
+  usageUnavailable: {
+    id: "codexMux.usageUnavailable",
+    defaultMessage: "Usage unavailable",
+    description: "Shown when a thread's subscription usage cannot be read",
+  },
+  depleted: {
+    id: "codexMux.depleted",
+    defaultMessage: "Depleted",
+    description: "Shown when a subscription has no weekly allowance left",
+  },
+  percentRemaining: {
+    id: "codexMux.percentRemaining",
+    defaultMessage: "{percent}% remaining",
+    description: "Weekly allowance left on the thread's subscription",
+  },
+};
+
+
 function CodexMuxProfileMenuOpenChange(setOpen) {
   return (nextOpen) => {
     if (!nextOpen && codexMuxLoginActive) return;
@@ -19,7 +261,9 @@ async function codexMuxRequest(path, options = {}) {
     },
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `リクエストに失敗しました (${response.status})`);
+  if (!response.ok) {
+    throw new Error(body.error || `Request failed (${response.status})`);
+  }
   return body;
 }
 
@@ -73,6 +317,7 @@ async function codexMuxConsumeRateLimitReset(accountId, input) {
 }
 
 function CodexMuxUseResetAccountState() {
+  const intl = __CODEX_MUX_INTL__();
   const cachedAccounts = (globalThis.__codexMuxConnectedAccounts || []).filter(
     (account) => account.connected && account.enabled,
   );
@@ -130,6 +375,7 @@ function CodexMuxUseResetAccountState() {
     CodexMuxResetAccountSelector,
     {
       accounts,
+      intl,
       loading,
       resetCounts,
       selectedId: activeId,
@@ -141,6 +387,7 @@ function CodexMuxUseResetAccountState() {
 
 function CodexMuxResetAccountSelector({
   accounts,
+  intl,
   loading,
   onSelect,
   resetCounts,
@@ -152,7 +399,7 @@ function CodexMuxResetAccountSelector({
       (0, __CODEX_MUX_JSX__.jsx)("div", {
         className:
           "mb-2 px-1 text-xs font-medium text-token-text-secondary",
-        children: "サブスクリプション",
+        children: intl.formatMessage(CODEX_MUX_MESSAGES.subscription),
       }),
       (0, __CODEX_MUX_JSX__.jsx)("div", {
         className:
@@ -160,7 +407,7 @@ function CodexMuxResetAccountSelector({
         children: loading
           ? (0, __CODEX_MUX_JSX__.jsx)("div", {
               className: "px-2 py-2 text-sm text-token-text-secondary",
-              children: "サブスクリプションを読み込み中…",
+              children: intl.formatMessage(CODEX_MUX_MESSAGES.loadingSubscriptions),
             })
           : accounts.map((account) => {
               const selected = account.id === selectedId;
@@ -197,8 +444,11 @@ function CodexMuxResetAccountSelector({
                           className: "text-xs text-token-text-tertiary",
                           children:
                             count == null
-                              ? "リセット情報を取得できません"
-                              : `利用可能なリセット: ${count}回`,
+                              ? intl.formatMessage(CODEX_MUX_MESSAGES.resetsUnavailable)
+                              : intl.formatMessage(
+                                  CODEX_MUX_MESSAGES.resetsAvailable,
+                                  { count },
+                                ),
                         }),
                       ],
                     }),
@@ -213,6 +463,7 @@ function CodexMuxResetAccountSelector({
 }
 
 function CodexMuxAccountMenu() {
+  const intl = __CODEX_MUX_INTL__();
   const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState([]);
   const [loading, setLoading] = __CODEX_MUX_REACT__.useState(true);
   const [busy, setBusy] = __CODEX_MUX_REACT__.useState(false);
@@ -290,8 +541,8 @@ function CodexMuxAccountMenu() {
   const connected = accounts.filter(
     (account) => account.connected && account.enabled,
   );
-  // サインインに失敗したアカウントは接続済みにならず通常は表示されない。
-  // 管理モードでは未接続のものも並べる。そうしないと消す手段が無くなる。
+  // An account whose sign-in failed never becomes connected, so it is normally
+  // hidden. List those while managing; otherwise there is no way to remove one.
   const listedAccounts = managing
     ? accounts.filter((account) => account.enabled)
     : connected;
@@ -316,7 +567,11 @@ function CodexMuxAccountMenu() {
     try {
       const created = await codexMuxRequest("/accounts", {
         method: "POST",
-        body: JSON.stringify({ label: `サブスクリプション ${connected.length + 1}` }),
+        body: JSON.stringify({
+          label: intl.formatMessage(CODEX_MUX_MESSAGES.subscriptionLabel, {
+            index: connected.length + 1,
+          }),
+        }),
       });
       const result = await codexMuxRequest(`/accounts/${created.account.id}/login`, {
         method: "POST",
@@ -377,16 +632,18 @@ function CodexMuxAccountMenu() {
         setError("");
         try {
           if (file.size > 64 * 1024) {
-            throw new Error("auth.json は 64 KB 未満である必要があります。");
+            throw new Error(intl.formatMessage(CODEX_MUX_MESSAGES.authTooLarge));
           }
           const auth = JSON.parse(await file.text());
           if (auth == null || Array.isArray(auth) || typeof auth !== "object") {
-            throw new Error("auth.json は 1 つの JSON オブジェクトである必要があります。");
+            throw new Error(intl.formatMessage(CODEX_MUX_MESSAGES.authNotObject));
           }
           await codexMuxRequest("/accounts/import", {
             method: "POST",
             body: JSON.stringify({
-              label: `サブスクリプション ${accounts.length + 1}`,
+              label: intl.formatMessage(CODEX_MUX_MESSAGES.subscriptionLabel, {
+                index: accounts.length + 1,
+              }),
               auth,
             }),
           });
@@ -394,7 +651,7 @@ function CodexMuxAccountMenu() {
         } catch (requestError) {
           const message =
             requestError instanceof SyntaxError
-              ? "auth.json が正しい JSON ではありません。"
+              ? intl.formatMessage(CODEX_MUX_MESSAGES.authInvalidJson)
               : requestError.message;
           await refresh();
           setError(message);
@@ -427,14 +684,14 @@ function CodexMuxAccountMenu() {
         }
         window.open(destination.href, "_blank", "noopener,noreferrer");
       } catch {
-        setError("サインイン確認ページを安全に開けませんでした。");
+        setError(intl.formatMessage(CODEX_MUX_MESSAGES.verificationOpenFailed));
       }
     }
     try {
       await copy;
       setCodeCopied(userCode !== "");
     } catch {
-      setError("サインインコードをコピーできませんでした。");
+      setError(intl.formatMessage(CODEX_MUX_MESSAGES.codeCopyFailed));
     }
   }
 
@@ -479,8 +736,10 @@ function CodexMuxAccountMenu() {
       {
         LeftIcon: CodexMuxUsageIcon,
         SubText: loading
-          ? "サブスクリプションに接続中…"
-          : `接続中のサブスクリプション: ${connected.length}件`,
+          ? intl.formatMessage(CODEX_MUX_MESSAGES.connectingSubscriptions)
+          : intl.formatMessage(CODEX_MUX_MESSAGES.connectedCount, {
+              count: connected.length,
+            }),
         rightIcon: (0, __CODEX_MUX_JSX__.jsx)("span", {
           className: "text-token-description-foreground tabular-nums",
           children: loading
@@ -489,7 +748,7 @@ function CodexMuxAccountMenu() {
               ? `${Math.round(totalRemaining)}%`
               : "–",
         }),
-        children: "残り利用枠",
+        children: intl.formatMessage(CODEX_MUX_MESSAGES.usageRemaining),
       },
       "codex-mux-total",
     ),
@@ -514,10 +773,11 @@ function CodexMuxAccountMenu() {
               label: account.label,
             }),
           SubText: !account.connected
-            ? "サインイン未完了"
+            ? intl.formatMessage(CODEX_MUX_MESSAGES.signInUnfinished)
             : account.email
               ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
-              : account.planType || "ChatGPTサブスクリプション",
+              : account.planType ||
+                intl.formatMessage(CODEX_MUX_MESSAGES.chatgptSubscription),
           className: "group",
           onSelect:
             managing && !account.controller
@@ -531,7 +791,11 @@ function CodexMuxAccountMenu() {
                     ? "text-token-description-foreground"
                     : "text-token-text-primary",
                 ].join(" "),
-                children: account.controller ? "プライマリ" : "削除",
+                children: intl.formatMessage(
+                  account.controller
+                    ? CODEX_MUX_MESSAGES.primary
+                    : CODEX_MUX_MESSAGES.remove,
+                ),
               })
             : (0, __CODEX_MUX_JSX__.jsx)("span", {
                 className: "text-token-description-foreground tabular-nums",
@@ -556,14 +820,16 @@ function CodexMuxAccountMenu() {
         {
           LeftIcon: CodexMuxAlertIcon,
           SubText:
-            "チャットはただちにこのアプリから消えます。アカウントのデータはローカルのバックアップに残ります",
+            intl.formatMessage(CODEX_MUX_MESSAGES.removeHint),
           tone: "danger",
           allowWrap: true,
           subTextAllowWrap: true,
           onSelect: removeSubscription,
           children: busy
-            ? "削除中…"
-            : `「${pendingLabel}」をこの PC から削除`,
+            ? intl.formatMessage(CODEX_MUX_MESSAGES.removing)
+            : intl.formatMessage(CODEX_MUX_MESSAGES.removeConfirm, {
+                label: pendingLabel,
+              }),
         },
         "codex-mux-remove-confirm",
       ),
@@ -573,7 +839,7 @@ function CodexMuxAccountMenu() {
         __CODEX_MUX_MENU_ITEM__,
         {
           onSelect: () => setPendingRemoval(null),
-          children: "キャンセル",
+          children: intl.formatMessage(CODEX_MUX_MESSAGES.cancel),
         },
         "codex-mux-remove-cancel",
       ),
@@ -590,7 +856,7 @@ function CodexMuxAccountMenu() {
           tone: "danger",
           allowWrap: true,
           subTextAllowWrap: true,
-          children: "サブスクリプションを削除できません",
+          children: intl.formatMessage(CODEX_MUX_MESSAGES.removeFailed),
         },
         "codex-mux-remove-error",
       ),
@@ -605,11 +871,15 @@ function CodexMuxAccountMenu() {
           LeftIcon: CodexMuxCopyIcon,
           SubText: login.userCode
             ? codeCopied
-              ? `コード ${login.userCode} をコピーしました`
-              : `コード ${login.userCode} · クリックでコピー`
-            : "ChatGPTでのサインインを完了してください",
+              ? intl.formatMessage(CODEX_MUX_MESSAGES.codeCopied, {
+                  code: login.userCode,
+                })
+              : intl.formatMessage(CODEX_MUX_MESSAGES.codeClickToCopy, {
+                  code: login.userCode,
+                })
+            : intl.formatMessage(CODEX_MUX_MESSAGES.finishSignIn),
           onSelect: copyCodeAndContinue,
-          children: "サインインを続行",
+          children: intl.formatMessage(CODEX_MUX_MESSAGES.continueSignIn),
         },
         "codex-mux-login",
       ),
@@ -626,7 +896,7 @@ function CodexMuxAccountMenu() {
           tone: "danger",
           allowWrap: true,
           subTextAllowWrap: true,
-          children: "サブスクリプションプールを利用できません",
+          children: intl.formatMessage(CODEX_MUX_MESSAGES.poolUnavailable),
         },
         "codex-mux-error",
       ),
@@ -640,9 +910,13 @@ function CodexMuxAccountMenu() {
           __CODEX_MUX_MENU_ITEM__,
           {
             LeftIcon: CodexMuxPlusIcon,
-            SubText: "使い捨てのデバイスコードでサインインする",
+            SubText: intl.formatMessage(CODEX_MUX_MESSAGES.deviceCodeHint),
             onSelect: addSubscription,
-            children: busy ? "処理中…" : "ChatGPT でサインイン",
+            children: intl.formatMessage(
+              busy
+                ? CODEX_MUX_MESSAGES.working
+                : CODEX_MUX_MESSAGES.continueWithChatGPT,
+            ),
           },
           "codex-mux-add-device-code",
         ),
@@ -652,9 +926,11 @@ function CodexMuxAccountMenu() {
           __CODEX_MUX_MENU_ITEM__,
           {
             LeftIcon: CodexMuxCopyIcon,
-            SubText: "既存の Codex ログインファイルを使う",
+            SubText: intl.formatMessage(CODEX_MUX_MESSAGES.importHint),
             onSelect: importSubscription,
-            children: busy ? "処理中…" : "auth.json をインポート",
+            children: intl.formatMessage(
+              busy ? CODEX_MUX_MESSAGES.working : CODEX_MUX_MESSAGES.importAuth,
+            ),
           },
           "codex-mux-import-auth",
         ),
@@ -664,7 +940,7 @@ function CodexMuxAccountMenu() {
           __CODEX_MUX_MENU_ITEM__,
           {
             onSelect: cancelAddMethod,
-            children: "キャンセル",
+            children: intl.formatMessage(CODEX_MUX_MESSAGES.cancel),
           },
           "codex-mux-cancel-add",
         ),
@@ -676,7 +952,7 @@ function CodexMuxAccountMenu() {
           {
             LeftIcon: CodexMuxPlusIcon,
             onSelect: chooseAddMethod,
-            children: "サブスクリプションを追加",
+            children: intl.formatMessage(CODEX_MUX_MESSAGES.addSubscription),
           },
           "codex-mux-add",
         ),
@@ -689,7 +965,11 @@ function CodexMuxAccountMenu() {
         __CODEX_MUX_MENU_ITEM__,
         {
           onSelect: managing ? exitManaging : startManaging,
-          children: managing ? "完了" : "サブスクリプションを管理",
+          children: intl.formatMessage(
+            managing
+              ? CODEX_MUX_MESSAGES.done
+              : CODEX_MUX_MESSAGES.manageSubscriptions,
+          ),
         },
         managing ? "codex-mux-manage-done" : "codex-mux-manage",
       ),
@@ -886,15 +1166,18 @@ function CodexMuxUseConnectedAccounts() {
   return accounts;
 }
 
-// プロフィール設定の統計は全サブスクリプションの合算値である。
-// 単一アカウントの識別情報のままでは合算だと分からないため、接続中の
-// アカウントを重ねて示す。接続が 1 件だけならネイティブ表示に任せる。
+// The Profile settings statistics are pooled across every subscription. One
+// account's identity would not convey that, so stack the connected accounts instead.
+// With a single connection, leave the native header alone.
 function CodexMuxProfileAvatarStack() {
+  const intl = __CODEX_MUX_INTL__();
   const accounts = CodexMuxUseConnectedAccounts();
   if (accounts.length < 2) return null;
   return (0, __CODEX_MUX_JSX__.jsx)("div", {
     className: "flex items-center justify-center",
-    "aria-label": `接続中のサブスクリプション: ${accounts.length}件`,
+    "aria-label": intl.formatMessage(CODEX_MUX_MESSAGES.connectedCount, {
+      count: accounts.length,
+    }),
     children: accounts.map((account, index) =>
       (0, __CODEX_MUX_JSX__.jsx)(
         "span",
@@ -918,18 +1201,23 @@ function CodexMuxProfileAvatarStack() {
 }
 
 function CodexMuxProfileDisplayName() {
+  const intl = __CODEX_MUX_INTL__();
   const accounts = CodexMuxUseConnectedAccounts();
   if (accounts.length < 2) return null;
-  return "合算プロフィール";
+  return intl.formatMessage(CODEX_MUX_MESSAGES.combinedProfile);
 }
 
 function CodexMuxProfileUsername() {
+  const intl = __CODEX_MUX_INTL__();
   const accounts = CodexMuxUseConnectedAccounts();
   if (accounts.length < 2) return null;
-  return `接続中のサブスクリプション: ${accounts.length}件`;
+  return intl.formatMessage(CODEX_MUX_MESSAGES.connectedCount, {
+    count: accounts.length,
+  });
 }
 
 function CodexMuxPluginScope() {
+  const intl = __CODEX_MUX_INTL__();
   const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState([]);
   const [selectedId, setSelectedId] = __CODEX_MUX_REACT__.useState("primary");
   const [loading, setLoading] = __CODEX_MUX_REACT__.useState(true);
@@ -985,20 +1273,22 @@ function CodexMuxPluginScope() {
         children: [
           (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "text-sm font-medium text-token-text-primary",
-            children: "プラグイン接続",
+            children: intl.formatMessage(CODEX_MUX_MESSAGES.pluginConnections),
           }),
           (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-0.5 text-xs text-token-text-secondary",
             children: selected
-              ? `インストールは全サブスクリプションで共有されます。以下の接続アクセスは「${selected.label}」のものです。`
-              : "インストールは全サブスクリプションで共有されます。接続アクセスに使うサブスクリプションを選択してください。",
+              ? intl.formatMessage(CODEX_MUX_MESSAGES.pluginScopeFor, {
+                  label: selected.label,
+                })
+              : intl.formatMessage(CODEX_MUX_MESSAGES.pluginScopeNone),
           }),
         ],
       }),
       loading
         ? (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-3 px-1 text-sm text-token-text-tertiary",
-            children: "サブスクリプションを読み込み中…",
+            children: intl.formatMessage(CODEX_MUX_MESSAGES.loadingSubscriptions),
           })
         : (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-3 flex flex-wrap gap-2",
@@ -1041,6 +1331,7 @@ function CodexMuxPluginScope() {
 // Export the same avatar component so both surfaces share image resolution,
 // error handling, and the initials fallback.
 globalThis.CodexMuxAccountAvatar = CodexMuxAccountAvatar;
+globalThis.CodexMuxMessages = CODEX_MUX_MESSAGES;
 globalThis.codexMuxProfileData = codexMuxProfileData;
 globalThis.CodexMuxProfileAvatarStack = () =>
   (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileAvatarStack, {});

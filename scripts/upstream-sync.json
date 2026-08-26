@@ -5,44 +5,44 @@
     {
       "ref": "upstream/dependabot/npm_and_yarn/electron/asar-4.3.0",
       "commit": "951683f64de2f6bd91c5d0006692764e3ec31700",
-      "decision": "適用",
-      "note": "@electron/asar 4.2.1 → 4.3.0。内容のみ適用し、再ビルドで動作を確認した。"
+      "decision": "applied",
+      "note": "@electron/asar 4.2.1 to 4.3.0. Applied as content and verified by a rebuild."
     },
     {
       "ref": "upstream/dependabot/github_actions/actions/checkout-7.0.1",
       "commit": "3e22ce1605e1b3ce677b483b255b6b04a7734653",
-      "decision": "内容のみ適用",
-      "note": "分岐元 c5c499b が先端より 3 コミット前。merge するとリネームと install.sh 追加を巻き戻すため、SHA の差し替えだけを適用した。"
+      "decision": "content only",
+      "note": "Cut from c5c499b, three commits behind the head. Merging would revert the rename and the installer commit, so only the SHA bump was applied."
     },
     {
       "ref": "upstream/dependabot/github_actions/actions/setup-node-7.0.0",
       "commit": "ca5951b12b9e84cf312be6387dac11597e991e2d",
-      "decision": "内容のみ適用",
-      "note": "分岐元 c5c499b が先端より 3 コミット前。merge 不可。SHA の差し替えだけを適用した。"
+      "decision": "content only",
+      "note": "Cut from c5c499b, three commits behind the head. Not mergeable; only the SHA bump was applied."
     },
     {
       "ref": "upstream PR #13 (bypass-external-provider-quota)",
       "commit": "6124703",
-      "decision": "適用",
-      "note": "外部プロバイダをクォータ外へルーティング。共有部分のみで完結。README 1 行は日本語で作り直し、import のモジュールパスを本 fork へ揃えた。未マージ PR のため上流の変更に追随が必要。"
+      "decision": "applied",
+      "note": "Routes external providers outside the pooled quota. Entirely shared code. Its README line was rewritten and imports were pointed at this fork's module path. Still an open pull request, so it may need to follow later changes."
     },
     {
       "ref": "upstream PR #21 (remove-subscription)",
       "commit": "94ac44e",
-      "decision": "適用",
-      "note": "サブスクリプション削除。UI はプレースホルダ束縛と日本語へ書き直した。上流が CORS の Access-Control-Allow-Headers を取りこぼしていたため復元し回帰テストを追加。Windows 向けに子プロセスの終了待ちと rename 再試行を実装。"
+      "decision": "applied",
+      "note": "Subscription removal. The UI was rewritten against this fork's placeholder bindings. Upstream dropped the CORS Access-Control-Allow-Headers, which was restored with a regression test. Windows needs the child to exit before the rename, plus a retry."
     },
     {
       "ref": "upstream PR #20 (codex/import-auth-json)",
       "commit": "1355c94",
-      "decision": "適用",
-      "note": "auth.json インポート。UI は同様に書き直した。auth.json のパーミッション検査は Windows では成立しないため、保護は ACL が担うことを明記して分岐した。"
+      "decision": "applied",
+      "note": "auth.json import. The UI was rewritten the same way. The auth.json permission assertion does not hold on Windows, so it is skipped there and the ACL provides the protection instead."
     },
     {
       "ref": "upstream PR #14 / #17 / #18",
       "commit": null,
-      "decision": "対象外",
-      "note": "#14 は macOS ビルドのアンカー、#17 は削除済み install.sh、#18 は削除済みの署名処理。"
+      "decision": "not applicable",
+      "note": "#14 targets macOS build anchors, #17 the deleted install.sh, and #18 the signing work this fork removed."
     }
   ]
 }

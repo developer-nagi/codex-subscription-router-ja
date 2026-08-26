@@ -1,87 +1,114 @@
-# 対応状況
+# Compatibility
 
-パッチャーは既知の ChatGPT デスクトップ構成に意図的に強く結び付いている。書き換える
-レンダラー・メインプロセスの全アンカーを検証し、部分的なパッチを当てずに停止する。
+The patcher is deliberately tied to a known ChatGPT desktop layout. It verifies every
+renderer and main-process anchor it rewrites and stops rather than applying a partial
+patch.
 
-## リリース 0.1.0 (Windows)
+## Release 0.1.0 (Windows)
 
-| 項目 | 検証値 |
+| Component | Tested value |
 | --- | --- |
 | OS | Windows 11 x64 |
-| 公式パッケージ | MSIX `OpenAI.Codex` |
-| 公式バージョン | `26.818.8289.0` |
+| Official package | MSIX `OpenAI.Codex` |
+| Official version | `26.818.8289.0` |
 | `app.asar` SHA-256 | `e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313` |
-| Electron fuse `EnableEmbeddedAsarIntegrityValidation` | 無効 (再パックにハッシュ更新が不要) |
-| 起動される app-server | `resources\codex.exe -c features.code_mode_host=true app-server --analytics-default-enabled` |
+| Electron fuse `EnableEmbeddedAsarIntegrityValidation` | Disabled, so repacking needs no hash update |
+| Spawned app-server | `resources\codex.exe -c features.code_mode_host=true app-server --analytics-default-enabled` |
 
-同一のアンカーがすべて一致すれば別バージョンでも動作しうるが、未検証である。パッチャーは既定で
-バージョンまたは ASAR ハッシュの不一致を拒否し、`--allow-untested-source` は明示的な診断用の
-上書き手段としてのみ用意している。新しいビルドを通すためにアンカー数やバイナリ定数の検査を
-弱めてはならない。上流の変更を確認し、意図的にパッチを更新すること。
+A different official version may work when every anchor is identical, but it is
+unverified. The patcher rejects a version or ASAR hash mismatch by default;
+`--allow-untested-source` is an explicit diagnostic override. Never weaken an anchor
+count or a binary constant merely to make a new build complete. Review the upstream
+change and update the patch deliberately.
 
-## 検証済みのパッチアンカー
+## Verified patch anchors
 
-すべて公式ビルド `26.818.8289.0` に対して一意一致することを確認済み。
+Each one matches exactly once against official build `26.818.8289.0`.
 
-| 対象 | 目的 |
+| Target | Purpose |
 | --- | --- |
-| `webview/index.html` の `connect-src` | 制御 API への接続を CSP で許可 |
-| プロフィールメニューコンポーネント | アカウントメニューの注入位置 |
-| `usageItems` スロット | アカウント一覧と合算利用量の描画 |
-| `/wham/profiles/me` 取得 | 合算プロフィール統計へ差し替え |
-| 使用量モーダル | アカウント別リセット状態の初期化 |
-| リセットクレジット取得クエリ | 選択アカウントのリセット残数を取得 |
-| リセットクレジット消費ミューテーション | 選択アカウントのみでリセットを消費 |
-| 使用量ウィンドウ選択 | 選択アカウントの利用枠を表示 |
-| プロフィールメニュー開閉フック (2 箇所) | デバイスコード表示中の誤クローズ防止 |
-| 利用枠切れアラート (4 箇所) | 合算枯渇メッセージへ差し替え |
-| プロフィールのアバター・表示名・ユーザー名 (3 箇所) | 統計が合算であることを示す |
-| `bootstrap-*.js` の `setPath('userData')` | デスクトッププロファイルの分離 |
-| `main-*.js` の Computer Use 指示 | Windows 向けの厳格な指示へ差し替え |
+| `connect-src` in `webview/index.html` | Let the CSP reach the control API |
+| Profile menu component | Where the account menu is injected |
+| `usageItems` slot | Renders the account list and pooled usage |
+| `/wham/profiles/me` request | Swapped for combined profile statistics |
+| Usage modal | Initializes the per-account reset state |
+| Reset-credit query | Reads the selected account's remaining resets |
+| Reset-credit mutation | Consumes a reset for the selected account only |
+| Usage-window selection | Shows the selected account's allowance |
+| Profile menu open-state hooks (2) | Keeps the menu open while a device code is visible |
+| Depletion alerts (4) | Replaced with the pooled depletion message |
+| Profile avatar, display name and username (3) | Show that the statistics are pooled |
+| `setPath('userData')` in `bootstrap-*.js` | Isolates the desktop profile |
+| Computer Use instruction in `main-*.js` | Replaced with the strict Windows wording |
 
-## 注入 UI の識別子束縛
+## Renderer identifier bindings
 
-注入するアカウント UI は、公式ビルド側の minify 済み識別子を参照する。これらの名前は
-ビルドごとに変わるため、`ui/account-menu.js` ではプレースホルダとして書き、パッチャーが
-宣言の存在を確認したうえで置換する。確認できない場合は停止する。
+The injected account UI references minified identifiers from the official build. Those
+names change between builds, so `ui/account-menu.js` writes them as placeholders and the
+patcher substitutes them only after confirming each declaration. It stops when one
+cannot be confirmed.
 
-| プレースホルダ | 識別子 | 役割 | 宣言の検出 |
+| Placeholder | Identifier | Role | Declaration probe |
 | --- | --- | --- | --- |
-| `__CODEX_MUX_JSX__` | `u7` | JSX ランタイム | `u7=J()` |
-| `__CODEX_MUX_REACT__` | `nql` | React (フック) | `nql=r(s(),1)` |
-| `__CODEX_MUX_MENU_ITEM__` | `fI` | メニュー行コンポーネント | `function fI(` |
-| `__CODEX_MUX_MENU__` | `vI` | メニュー名前空間 (`Separator`) | `vI={Trigger:` |
-| `__CODEX_MUX_IMAGE_URL__` | `Ija` | プロフィール画像 URL の解決 | `function Ija(` |
+| `__CODEX_MUX_JSX__` | `u7` | JSX runtime | `u7=J()` |
+| `__CODEX_MUX_REACT__` | `nql` | React (hooks) | `nql=r(s(),1)` |
+| `__CODEX_MUX_MENU_ITEM__` | `fI` | Menu row component | `function fI(` |
+| `__CODEX_MUX_MENU__` | `vI` | Menu namespace (`Separator`) | `vI={Trigger:` |
+| `__CODEX_MUX_IMAGE_URL__` | `Ija` | Profile image URL resolution | `function Ija(` |
+| `__CODEX_MUX_INTL__` | `pd` | `useIntl` for formatjs | `function pd()` |
 
-アイコンは公式ビルドの識別子に依存せず、注入 UI 内で SVG として定義する。
+Icons do not depend on official identifiers; the injected UI defines them as SVG.
 
-## macOS 版から未移植の機能
+## Localization
 
-Windows ビルドでは該当画面の実装が変わっており、macOS 版のアンカーおよび注入方式が成立しない。
-現時点では当該パッチを当てていない。無理に近似のアンカーへ当てるより、未適用であることを
-明示する方針をとる。
+The injected UI uses the same mechanism as the official app: every string is a formatjs
+descriptor with an `id`, a `defaultMessage` and a `description`. The official app looks
+the id up in the active language's dictionary and falls back to `defaultMessage` when it
+is missing.
 
-| 機能 | Windows ビルドでの状況 |
+`ui/messages/<locale>.json` holds the translations, and the patcher inserts them into the
+matching official locale bundle. All 64 locales the app ships are covered, so the account
+UI follows the display language exactly as the native strings do. English comes from
+`defaultMessage` and needs no file.
+
+Translations use plain `{count}` interpolation rather than ICU plural categories. Only
+the English `defaultMessage` uses real plural forms, because a wrong plural category for
+a language makes formatjs fail at runtime.
+
+The depletion alerts are a special case. They reuse official message ids, and those ids
+already have official translations in every language. formatjs prefers a translation over
+`defaultMessage`, so the patcher also replaces the id with `codexMux.allSubscriptionsDepleted`.
+Without that, the injected wording never appears in a translated language.
+
+## Features not ported from the macOS build
+
+The Windows build implements these screens differently, so the macOS anchors and
+injection approach do not hold. The patch is simply not applied. Stating that plainly is
+preferred over forcing an approximate anchor.
+
+| Feature | State in the Windows build |
 | --- | --- |
-| 設定 → プラグインのサブスクリプション切り替え | 中央の app-server リクエストブリッジ (macOS の `gm`) が存在せず、`selectedHostId` を用いる別アーキテクチャに変更されている |
-| プロフィール設定でアカウントを選び個別統計を見る機能 | 合算であることの表示は実装済み。ただし `profile-*.js` に再取得の手掛かり (macOS の `refetch`) が無く、選択変更時にプロフィールを取り直す配線ができない |
-| スレッド要約の「サブスクリプション」欄 | `local-conversation-thread-*.js` のセクション配列の形が異なり、挿入位置を一意に特定できない |
-| 「残り利用枠」行から使用量モーダルを開く導線 | macOS のモーダルオープナー (`BW`) が存在しない。行は情報表示のみとなる。モーダルがネイティブに開いた際のアカウント別リセット選択は動作する |
+| Subscription switching on Settings → Plugins | The central app-server request bridge (`gm` on macOS) is gone, replaced by a `selectedHostId` architecture |
+| Selecting one account's statistics on the Profile page | The pooled display works. There is no refetch handle in `profile-*.js` (macOS `refetch`), so the profile cannot be re-requested when the selection changes |
+| The "Subscription" row in the thread summary | The section array in `local-conversation-thread-*.js` has a different shape, so the insertion point is not uniquely identifiable |
+| Opening the usage modal from the "Usage remaining" row | The macOS modal opener (`BW`) does not exist, so the row is informational. Per-account reset selection still works once the modal opens natively |
 
-合算プロフィール統計そのものは動作する。接続が 2 件以上のとき、プロフィール設定は接続中の
-アカウントを重ねたアバターと「合算プロフィール」「接続中のサブスクリプション: N件」を表示する。
-接続が 1 件だけならネイティブ表示のままとする。
+Combined profile statistics themselves work. With two or more connections, the Profile
+page shows the connected accounts as overlapping avatars along with "Combined profile"
+and the connected count. A single connection keeps the native header.
 
-プラグインの定義と MCP 構成は全アカウントで共有されるため、プラグイン自体は各サブスクリプションから
-利用できる。切り替え UI のみが未提供である。
+Plugin definitions and MCP configuration are shared across accounts, so plugins are
+usable from every subscription. Only the switching UI is missing.
 
-`ui/thread-subscription.js` は再導出時に使うため残してある。現在パッチャーからは注入されない。
+`ui/thread-subscription.js` is kept for a future re-derivation. The patcher does not
+inject it today.
 
-## 公式プラグイン機構との関係
+## Relationship to the official plugin system
 
-公式のプラグインは `.codex-plugin/plugin.json` を持つフォルダとして配布され、個人向けの
-マーケットプレイスはユーザープロファイル配下の `.agents/plugins/marketplace.json` に置かれる。
-これらは `CODEX_HOME` の外にあり、隔離アカウント間で自然に共有される。したがって本プロジェクトの
-「プラグイン定義と MCP 構成はプライマリから共有する」という設計と整合し、プラグインの導入自体に
-問題は生じない。アカウントごとに分離されるのは接続 (OAuth) の状態であり、その切り替え UI が
-上表のとおり Windows では未提供である。
+Official plugins ship as folders holding a `.codex-plugin/plugin.json`, and the personal
+marketplace lives at `.agents/plugins/marketplace.json` under the user profile. Both sit
+outside `CODEX_HOME`, so they are naturally shared between isolated accounts. That
+matches this project's design of sharing plugin definitions and MCP configuration from
+the Primary account, so installing plugins raises no problem. What is separated per
+account is the connection (OAuth) state, and that switching UI is unavailable on Windows
+as noted above.

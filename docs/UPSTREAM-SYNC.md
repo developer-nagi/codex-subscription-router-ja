@@ -1,121 +1,131 @@
-# fork 元の変更を取り込む
+# Taking changes from upstream
 
-本 fork は fork 元 (`b-nnett/codex-subscription-router`) を macOS 版から Windows 版へ
-全面的に置き換え、利用者から見える文字列を日本語化している。共有しているのは Go の
-多重化ロジックと注入 UI の一部だけで、パッチャー、インストーラ、CI、文書は別物である。
+This fork replaced upstream's (`b-nnett/codex-subscription-router`) macOS build with a
+Windows one. What the two still share is the Go multiplexing logic and part of the
+injected UI; the patcher, installer, CI, and documentation are different work.
 
-そのため **`git merge upstream/main` は使わない**。上流の変更はコミット単位で確認し、
-必要なものだけを適用する。
+For that reason **`git merge upstream/main` is not used**. Upstream changes are reviewed
+one commit at a time and only the relevant ones are applied.
 
-## 原則
+## Principles
 
-1. 上流ブランチを直接 merge しない。分岐元が古いブランチを merge すると、その後に
-   入った上流の変更を巻き戻す。
-2. 適用するかどうかの判断と根拠を `scripts/upstream-sync.json` に残す。同じ検討を
-   繰り返さないため。
-3. 適用したら `npm run check` と、パッチャーに影響する変更なら実機での再ビルドまで
-   確認する。
+1. Never merge an upstream branch directly. Merging a branch cut from an older base
+   reverts the upstream changes made after that point.
+2. Record the decision and its reasoning in `scripts/upstream-sync.json` so the same
+   review is not repeated.
+3. After applying anything, run `npm run check`, and rebuild on real hardware when the
+   change touches the patcher.
 
-## 確認する
+## Reviewing
 
 ```powershell
 npm run upstream:check
 ```
 
-`upstream` remote を fetch してから確認する場合:
+To fetch the `upstream` remote first:
 
 ```powershell
 npm run upstream:check -- --fetch
 ```
 
-出力は未確認の上流コミットを列挙し、変更ファイルを次のように分類する。
+The output lists unreviewed upstream commits and classifies their files:
 
-| 分類 | 意味 | 扱い |
+| Classification | Paths | Treatment |
 | --- | --- | --- |
-| 取り込み候補 | `cmd/`、`internal/`、`ui/`、`go.mod`、`VERSION` | 本 fork と共有。多くはそのまま適用できる |
-| 要注意 | `scripts/`、`README.md`、`docs/`、`.github/workflows/`、ルート文書 | Windows 向けに書き換え済み。差分を読み、必要なら手で作り直す |
-| 対象外 | `install.sh`、`native/` | 本 fork では削除済み。適用しない |
-| 分類なし | 上記以外 | 個別に判断し、必要なら `scripts/check_upstream.py` の分類を更新する |
+| candidate | `cmd/`, `internal/`, `ui/`, `go.mod`, `VERSION` | Shared with this fork; usually applies as-is |
+| review | `scripts/`, `README.md`, `docs/`, `.github/workflows/`, root documents | Rewritten for Windows; read the diff and reimplement the intent |
+| not applicable | `install.sh`, `native/` | Deleted in this fork; do not apply |
+| unclassified | Anything else | Judge individually and update the rules in `scripts/check_upstream.py` |
 
-分岐元が上流の先端より古いブランチは、警告として併記される。
+Branches cut from a base older than the upstream head are listed as a warning, and the
+upstream's open pull requests are listed and classified the same way. Most upstream pull
+requests come from contributor forks, so they never appear in `git ls-remote`; looking
+only at branches misses them.
 
-## 適用する
+## Applying
 
-### 共有部分 (`cmd/`、`internal/`、`ui/`)
+### Shared code (`cmd/`, `internal/`, `ui/`)
 
-作業ツリーを綺麗にしてから、コミットせずに取り込んで内容を確認する。
+Start from a clean working tree and take the change without committing so it can be
+reviewed.
 
 ```bash
 git cherry-pick -n <commit>
 ```
 
-衝突したら、本 fork 側の Windows 対応と日本語化を保ったまま解決する。特に次は
-巻き戻さないよう注意する。
+Resolve conflicts while keeping this fork's Windows support in place. Take particular
+care not to revert:
 
-- Go のモジュールパス (`github.com/developer-nagi/codex-subscription-router-win`)
-- 日本語のユーザー向け文字列 (`internal/mux/mux.go`、`internal/state/store.go`)
-- Windows 固有の分岐 (`internal/backend/terminate_windows.go`、`resolveRealExecutable`)
+- The Go module path (`github.com/developer-nagi/codex-subscription-router-win`)
+- Windows-specific behaviour (`internal/backend/terminate_windows.go`,
+  `resolveRealExecutable`, the removal retry in `internal/mux/accounts.go`)
+- The injected UI's placeholder bindings and formatjs message descriptors
 
-### 書き換え済み部分 (`scripts/`、`docs/`、ワークフロー)
+Upstream writes the injected UI against the macOS build's minified identifiers. Rewrite
+those to the placeholders this fork uses, and add any new user-facing string to
+`ui/messages/*.json` for every locale.
 
-cherry-pick せず、差分を読んで意図だけを取り込む。
+### Rewritten areas (`scripts/`, `docs/`, workflows)
+
+Do not cherry-pick these. Read the diff and take only the intent.
 
 ```bash
 git show <commit> -- scripts/ docs/
 ```
 
-パッチャーのアンカーに関する上流の変更は、macOS ビルドを前提にしている。Windows
-ビルドでは識別子が異なるため、そのまま持ち込まない。`docs/COMPATIBILITY.md` の
-アンカー表と識別子束縛表を実ビルドに対して再確認する。
+Upstream changes to patcher anchors assume the macOS build. The Windows build uses
+different identifiers, so never carry them over directly. Re-verify the anchor and
+binding tables in `docs/COMPATIBILITY.md` against the real build.
 
-### 依存更新 (Dependabot)
+### Dependency updates (Dependabot)
 
-上流の Dependabot ブランチは merge せず、バージョン指定だけを適用する。
+Do not merge an upstream Dependabot branch; apply the version change only.
 
 ```powershell
 npm install --save-exact --ignore-scripts @electron/asar@<version>
 ```
 
-GitHub Actions は SHA で固定しているため、SHA を差し替える。値は必ず検証する。
+GitHub Actions are pinned by commit SHA, so replace the SHA and always verify it.
 
 ```bash
 gh api repos/actions/checkout/commits/<sha> --jq .sha
 ```
 
-`@electron/asar` はパッチャーの中核 (extract / pack / list) なので、更新したら実機で
-再ビルドまで確認する。
+`@electron/asar` is central to the patcher (extract, pack, list), so rebuild on real
+hardware after updating it.
 
-## 記録する
+## Recording
 
-適用または見送りを決めたら、`scripts/upstream-sync.json` の `decisions` に追記し、
-確認済みコミットを進める。
+After deciding to apply or skip something, append to `decisions` in
+`scripts/upstream-sync.json` and move the reviewed marker forward.
 
 ```powershell
 npm run upstream:check -- --mark-reviewed
 ```
 
-特定のコミットまでを確認済みにする場合は、コミットを渡す。
+To mark a specific commit instead:
 
 ```powershell
 npm run upstream:check -- --mark-reviewed <commit>
 ```
 
-## 検証する
+## Verifying
 
 ```powershell
 npm run check
 npm run release:check
 ```
 
-パッチャー、注入 UI、Go の多重化ロジックに触れた場合は、実機での再ビルドと起動確認まで
-行う。手順は [SMOKE-TEST.md](SMOKE-TEST.md) にある。
+When the patcher, the injected UI, or the Go multiplexing logic changed, rebuild and
+launch on real hardware. The procedure is in [SMOKE-TEST.md](SMOKE-TEST.md).
 
 ```powershell
 python scripts/patch_app.py --force
 ```
 
-## これまでの判断
+## Decisions so far
 
-`scripts/upstream-sync.json` を参照する。2026-08-26 時点では、上流 `main` に本 fork の
-分岐後の新規コミットはなく、Dependabot ブランチ 3 本のうち 2 本が先端より 3 コミット前から
-分岐していたため merge せず、内容のみを適用している。
+See `scripts/upstream-sync.json`. As of 2026-08-27, upstream `main` has no commits after
+this fork diverged. Of the three Dependabot branches, two were cut three commits behind
+the head and were not merged; their content was applied instead. Three open pull requests
+were taken (#13, #20, #21) and the rest were judged not applicable.

@@ -68,9 +68,9 @@ func TestAddAccountWithAuthWritesPrivateFileAndRejectsDuplicate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Windows は POSIX のパーミッションビットを実装しない。os.Chmod は読み取り専用
-	// 属性しか変えないため、ここでの保護は親ディレクトリの ACL が担う。
-	// ACL はパッチャーが状態ルートへ適用する。
+	// Windows does not implement POSIX permission bits: os.Chmod only toggles the
+	// read-only attribute. The parent directory's ACL provides the protection here,
+	// and the patcher applies that ACL to the state root.
 	if mode := info.Mode().Perm(); runtime.GOOS != "windows" && mode != 0o600 {
 		t.Fatalf("auth.json mode = %#o, want 0600", mode)
 	}

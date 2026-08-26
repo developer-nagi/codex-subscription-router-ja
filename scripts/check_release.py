@@ -105,7 +105,7 @@ def main() -> int:
         fail(f"CHANGELOG.md has no release link for {version}")
 
     compatibility = (ROOT / "docs/COMPATIBILITY.md").read_text(encoding="utf-8")
-    if f"## リリース {version}" not in compatibility:
+    if f"## Release {version}" not in compatibility:
         fail(f"docs/COMPATIBILITY.md has no entry for {version}")
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")

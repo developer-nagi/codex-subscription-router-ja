@@ -1,68 +1,75 @@
-# セキュリティモデル
+# Security model
 
-## 信頼境界
+## Trust boundaries
 
-- 公式 ChatGPT デスクトップアプリは信頼されたビルド入力であり、変更しない。
-- パッチャーは設計上、ローカルのファイルシステムへアクセスする権限を持つ。
-- 各 Codex 子プロセスは、割り当てられたアカウントホームに対してのみ信頼される。
-- 注入したレンダラーはループバック制御トークンを保持する信頼対象である。
-- 同一 Windows ユーザーで動作する他のプロセスは互いに隔離されているとは見なさない。
-  それらは既にそのユーザーのアプリデータを読める立場にある。
-- 他のローカルユーザーとリモートのオリジンは制御 API の境界の外側にある。
+- The official ChatGPT desktop app is trusted build input and is never modified.
+- The patcher has local filesystem access by design.
+- Each Codex child is trusted with only its assigned account home.
+- The injected renderer is trusted with the loopback control token.
+- Processes running as the same Windows user are not considered isolated from one
+  another; they can already read that user's app data.
+- Other local users and remote origins are outside the control API boundary.
 
-## 資格情報
+## Credentials
 
-OAuth の情報は各アカウントの Codex ホーム内の `auth.json` に留まる。多重化プロキシは、
-デスクトップ体験と同じ認証付きの ChatGPT プロフィールおよびレート制限リセットのエンドポイントを
-呼ぶためにのみトークンを読む。トークンをログへ出力することも、API から返すこともない。
-永続化する状態はアカウントのパス、ラベル、有効状態、スレッド所有だけである。
+OAuth material stays in `auth.json` under each account's Codex home. The multiplexer
+reads an account token only to call the same authenticated ChatGPT profile and
+rate-limit-reset endpoints the desktop experience uses. It does not log tokens or return
+them from the control API. The state it persists contains account paths, labels, enabled
+state, and thread ownership only.
 
-状態ディレクトリ、状態ファイル、構成ファイル、制御トークンは ACL の継承を切り、現在のユーザーのみに
-アクセスを限定する。既存の制御トークンは 256 ビットの十六進値として検証する。
+An imported `auth.json` is validated strictly before it is stored: a 64 KB size cap, a
+single JSON value, no unknown fields, `auth_mode` of `chatgpt`, a null `OPENAI_API_KEY`,
+and non-empty tokens. A duplicate ChatGPT account is rejected.
 
-Windows は POSIX のパーミッションビットを実装しない。Go 側が指定する `0o600` は `os.Chmod` が
-読み取り専用属性しか変えないため実効性を持たない。アカウントホームと `auth.json` の保護は、
-`%USERPROFILE%` 配下の既定の権限と、状態ルート作成時に適用する ACL の継承が担う。
+Windows does not implement POSIX permission bits. The `0o600` the Go code requests has no
+effect, because `os.Chmod` only toggles the read-only attribute. Account homes and
+`auth.json` are protected by the default permissions under `%USERPROFILE%` and by the ACL
+applied when the state root is created.
 
-この ACL は状態ルートを新規作成したときだけ適用する。既存の状態ルートを書き換えると、公式アプリが
-Windows サンドボックス用に追加する権限を消してしまうためである。ACL の適用は環境によっては
-特権を要求され失敗しうるが、その場合も導入は続行し、警告を出したうえで `%USERPROFILE%` 既定の
-権限に委ねる。
+That ACL is applied only when the state root is newly created. Rewriting an existing state
+root would strip the permission the official app adds for its Windows sandbox. Applying an
+ACL can require a privilege the process lacks; when it fails, the install continues, warns,
+and relies on the default `%USERPROFILE%` permissions.
 
-プラグインと MCP の構成は、導入済みの定義を一貫させるために意図的にプライマリアカウントから
-同期する。それらの定義に埋め込まれた環境値は各隔離アカウントのホームへコピーされる。したがって
-アカウントの隔離は、共有プラグイン構成に対する秘密情報の分離境界ではない。
+Plugin and MCP configuration is deliberately synchronized from the Primary account so
+installed definitions stay consistent. Inline environment values inside those definitions
+are therefore copied into every isolated account home. Account isolation is not a separate
+secret boundary for shared plugin configuration.
 
-## ネットワーク
+## Network
 
-制御サーバーは `127.0.0.1` にバインドする。非公開のエンドポイントは、独立ビルドのレンダラーへ
-埋め込んだトークンを要求する。プロフィール画像は HTTPS のみを許可する。レスポンスサイズと
-JSON リクエストボディには上限を設ける。
+The control server binds to `127.0.0.1`. Private endpoints require the token embedded into
+the independently built local renderer. Profile images must use HTTPS. Response sizes and
+JSON request bodies are bounded.
 
-本プロジェクト自体はテレメトリや更新のエンドポイントを提供しない。ループバック以外の通信は、
-公式の Codex 子プロセス、または文書化された ChatGPT のプロフィールおよびレート制限 API による。
+The project itself provides no telemetry or update endpoint. Traffic beyond loopback is
+performed by the official Codex children or by the documented ChatGPT profile and
+rate-limit APIs.
 
-## Windows 固有の考慮点
+## Windows specifics
 
-コピーしたアプリは MSIX パッケージの外に置かれるため、パッケージ ID を持たない。Store 側の更新で
-パッチ済みコピーが上書きされることはない一方、MSIX ID に依存する一部の OS 連携 (トースト通知の
-一部経路など) は公式アプリと同じようには機能しない場合がある。
+The copied app lives outside the MSIX package, so it has no package identity. A Store
+update cannot overwrite the patched copy, but some OS integrations that depend on MSIX
+identity may not behave exactly as they do for the official app.
 
-Windows ビルドは Electron fuse `EnableEmbeddedAsarIntegrityValidation` が無効であり、再パックした
-`app.asar` の検証は行われない。これは上流の設定であって本プロジェクトが変更したものではない。
-`RunAsNode` と `EnableNodeOptionsEnvironmentVariable` も上流で有効であるため、同一ユーザーで
-動作するプロセスはこのアプリの Node ランタイムを利用しうる。これは公式アプリでも同様である。
+The Windows build ships the Electron fuse `EnableEmbeddedAsarIntegrityValidation`
+disabled, so a repacked `app.asar` is not verified. That is an upstream setting, not one
+this project changes. `RunAsNode` and `EnableNodeOptionsEnvironmentVariable` are also
+enabled upstream, so processes running as the same user can make use of the app's Node
+runtime. The same is true of the official app.
 
-Windows には macOS の TCC に相当するアプリ単位のプライバシー許可がないため、Computer Use 用の
-独立署名ヘルパーや許可行の管理は存在しない。対応するパッチも持たない。
+Windows has no per-app privacy permission equivalent to macOS TCC, so there is no
+separately signed Computer Use helper or permission row to manage, and no corresponding
+patch.
 
-## 診断
+## Diagnostics
 
-`CODEX_MUX_UI_TESTS=1` は決定的なプレビューとスクリーンショット用のエンドポイントを有効にする。
-通常の起動では利用できず、ループバックのみにバインドし、同じ制御トークンを要求する。リリース用の
-ワークフローがこの変数を設定することはない。
+`CODEX_MUX_UI_TESTS=1` enables deterministic preview and screenshot endpoints. They are
+unavailable during a normal launch, bind only to loopback, and require the same control
+token. Release workflows never set this variable.
 
-## 配布
+## Distribution
 
-リリースにはソースのみを含める。パッチ済みのアプリ、公式の ASAR、抽出した OpenAI のバイナリを
-公開することは本プロジェクトのリリース手順の範囲外である。
+Releases contain source only. Publishing the patched app, the official ASAR, or any
+extracted OpenAI binary is outside this project's release process.
