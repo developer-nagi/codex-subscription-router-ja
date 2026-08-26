@@ -26,6 +26,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 - Localization for the injected UI through the same formatjs mechanism the official app
   uses. Translations for all 64 shipped locales are inserted into the official locale
   bundles, so the account UI follows the display language exactly as native strings do.
+  Subscription names are part of that: they are rendered from the interface language
+  rather than from the label stored when the account was added, which would otherwise
+  keep whichever language was active at that moment.
 - A remaining-allowance bar under each subscription label, plus the account's banked
   reset credits beside the percentage as `♻0`. The bar runs blue while there is room,
   orange under 30 percent remaining, and red under 10; the reset count is green.

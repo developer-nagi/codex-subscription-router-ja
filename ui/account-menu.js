@@ -91,7 +91,8 @@ const CODEX_MUX_MESSAGES = {
   primary: {
     id: "codexMux.primary",
     defaultMessage: "Primary",
-    description: "Marks the subscription that cannot be removed",
+    description:
+      "Name of the subscription that cannot be removed, and the badge marking it",
   },
   remove: {
     id: "codexMux.remove",
@@ -328,6 +329,7 @@ function CodexMuxUseResetAccountState() {
 
   const loadAccounts = __CODEX_MUX_REACT__.useCallback(async () => {
     const result = await codexMuxRequest("/accounts");
+    codexMuxRememberAccountOrder(result.accounts || []);
     const connected = (result.accounts || []).filter(
       (account) => account.connected && account.enabled,
     );
@@ -409,7 +411,7 @@ function CodexMuxResetAccountSelector({
               className: "px-2 py-2 text-sm text-token-text-secondary",
               children: intl.formatMessage(CODEX_MUX_MESSAGES.loadingSubscriptions),
             })
-          : accounts.map((account) => {
+          : accounts.map((account, index) => {
               const selected = account.id === selectedId;
               const count = resetCounts[account.id];
               return (0, __CODEX_MUX_JSX__.jsxs)(
@@ -428,7 +430,7 @@ function CodexMuxResetAccountSelector({
                   children: [
                     (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
                       imageUrl: account.profileImageUrl,
-                      label: account.label,
+                      label: codexMuxAccountLabel(intl, account, index),
                       className: "size-7",
                     }),
                     (0, __CODEX_MUX_JSX__.jsxs)("span", {
@@ -436,9 +438,7 @@ function CodexMuxResetAccountSelector({
                       children: [
                         (0, __CODEX_MUX_JSX__.jsx)("span", {
                           className: "max-w-40 truncate text-sm font-medium",
-                          children: account.planLabel
-                            ? `${account.label} · ${account.planLabel}`
-                            : account.label,
+                          children: codexMuxAccountTitle(intl, account, index),
                         }),
                         (0, __CODEX_MUX_JSX__.jsx)("span", {
                           className: "text-xs text-token-text-tertiary",
@@ -481,6 +481,7 @@ function CodexMuxAccountMenu() {
     try {
       const result = await codexMuxRequest("/accounts");
       const nextAccounts = result.accounts || [];
+      codexMuxRememberAccountOrder(nextAccounts);
       globalThis.__codexMuxConnectedAccounts = nextAccounts.filter(
         (account) => account.connected && account.enabled,
       );
@@ -593,9 +594,9 @@ function CodexMuxAccountMenu() {
       const created = await codexMuxRequest("/accounts", {
         method: "POST",
         body: JSON.stringify({
-          label: intl.formatMessage(CODEX_MUX_MESSAGES.subscriptionLabel, {
-            index: connected.length + 1,
-          }),
+          // The stored label is backend-facing only; the interface renders its own
+          // localized name. Keep it language-neutral so state and events stay English.
+          label: `Subscription ${connected.length + 1}`,
         }),
       });
       const result = await codexMuxRequest(`/accounts/${created.account.id}/login`, {
@@ -666,9 +667,8 @@ function CodexMuxAccountMenu() {
           await codexMuxRequest("/accounts/import", {
             method: "POST",
             body: JSON.stringify({
-              label: intl.formatMessage(CODEX_MUX_MESSAGES.subscriptionLabel, {
-                index: accounts.length + 1,
-              }),
+              // Backend-facing only; see the device-code path above.
+              label: `Subscription ${accounts.length + 1}`,
               auth,
             }),
           });
@@ -784,7 +784,7 @@ function CodexMuxAccountMenu() {
     );
   }
 
-  for (const account of listedAccounts) {
+  for (const [index, account] of listedAccounts.entries()) {
     const weekly = codexMuxWeeklyWindow(account.rateLimits);
     const remaining = weekly == null ? null : Math.max(0, 100 - weekly.usedPercent);
     const resetCount = account.connected ? resetCounts[account.id] ?? null : null;
@@ -796,7 +796,7 @@ function CodexMuxAccountMenu() {
             (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
               ...iconProps,
               imageUrl: account.profileImageUrl,
-              label: account.label,
+              label: codexMuxAccountLabel(intl, account, index),
             }),
           SubText: (0, __CODEX_MUX_JSX__.jsxs)("span", {
             className: "flex min-w-0 flex-col",
@@ -862,9 +862,7 @@ function CodexMuxAccountMenu() {
                       }),
                 ],
               }),
-          children: account.planLabel
-            ? `${account.label} · ${account.planLabel}`
-            : account.label,
+          children: codexMuxAccountTitle(intl, account, index),
         },
         `codex-mux-account-${account.id}`,
       ),
@@ -872,9 +870,7 @@ function CodexMuxAccountMenu() {
   }
 
   if (pendingRemoval) {
-    const pendingLabel = pendingRemoval.planLabel
-      ? `${pendingRemoval.label} · ${pendingRemoval.planLabel}`
-      : pendingRemoval.label;
+    const pendingLabel = codexMuxAccountTitle(intl, pendingRemoval, null);
     rows.push(
       (0, __CODEX_MUX_JSX__.jsx)(
         __CODEX_MUX_MENU_ITEM__,
@@ -1181,6 +1177,33 @@ function CodexMuxMaskedEmail({ email }) {
   });
 }
 
+// A subscription's name is display-only. The label stored with the account is written
+// once, when the account is added, so it would keep the language that was active then.
+// Derive the name from the interface language instead, and remember each account's
+// position in the full list so every view numbers a subscription the same way.
+function codexMuxRememberAccountOrder(accounts) {
+  const ordinals = {};
+  accounts.forEach((account, index) => {
+    ordinals[account.id] = index + 1;
+  });
+  globalThis.__codexMuxAccountOrdinals = ordinals;
+}
+
+function codexMuxAccountLabel(intl, account, fallbackIndex) {
+  if (account.controller) return intl.formatMessage(CODEX_MUX_MESSAGES.primary);
+  const ordinals = globalThis.__codexMuxAccountOrdinals || {};
+  const index =
+    ordinals[account.id] ?? (fallbackIndex == null ? null : fallbackIndex + 1);
+  return index == null
+    ? account.label
+    : intl.formatMessage(CODEX_MUX_MESSAGES.subscriptionLabel, { index });
+}
+
+function codexMuxAccountTitle(intl, account, fallbackIndex) {
+  const label = codexMuxAccountLabel(intl, account, fallbackIndex);
+  return account.planLabel ? `${label} · ${account.planLabel}` : label;
+}
+
 function CodexMuxAccountAvatar({ imageUrl, label, className }) {
   const [failed, setFailed] = __CODEX_MUX_REACT__.useState(false);
   const resolvedImageUrl = __CODEX_MUX_IMAGE_URL__(imageUrl || null);
@@ -1215,6 +1238,7 @@ function CodexMuxUseConnectedAccounts() {
     codexMuxRequest("/accounts")
       .then((result) => {
         if (!live) return;
+        codexMuxRememberAccountOrder(result.accounts || []);
         const connected = (result.accounts || []).filter(
           (account) => account.connected && account.enabled,
         );
@@ -1268,12 +1292,10 @@ function CodexMuxProfileAvatarStack() {
               marginLeft: index === 0 ? 0 : -20,
               zIndex: index,
             },
-            title: account.planLabel
-              ? `${account.label} · ${account.planLabel}`
-              : account.label,
+            title: codexMuxAccountTitle(intl, account, index),
             children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
               imageUrl: account.profileImageUrl,
-              label: account.label,
+              label: codexMuxAccountLabel(intl, account, index),
               className: "size-20 shrink-0",
             }),
           },
@@ -1311,6 +1333,7 @@ function CodexMuxPluginScope() {
     codexMuxRequest("/accounts")
       .then((result) => {
         if (!live) return;
+        codexMuxRememberAccountOrder(result.accounts || []);
         setAccounts(
           (result.accounts || []).filter(
             (account) => account.connected && account.enabled,
@@ -1363,7 +1386,7 @@ function CodexMuxPluginScope() {
             className: "mt-0.5 text-xs text-token-text-secondary",
             children: selected
               ? intl.formatMessage(CODEX_MUX_MESSAGES.pluginScopeFor, {
-                  label: selected.label,
+                  label: codexMuxAccountLabel(intl, selected, null),
                 })
               : intl.formatMessage(CODEX_MUX_MESSAGES.pluginScopeNone),
           }),
@@ -1376,7 +1399,7 @@ function CodexMuxPluginScope() {
           })
         : (0, __CODEX_MUX_JSX__.jsx)("div", {
             className: "mt-3 flex flex-wrap gap-2",
-            children: accounts.map((account) => {
+            children: accounts.map((account, index) => {
               const active = account.id === selected?.id;
               return (0, __CODEX_MUX_JSX__.jsxs)(
                 "button",
@@ -1393,13 +1416,11 @@ function CodexMuxPluginScope() {
                   children: [
                     (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
                       imageUrl: account.profileImageUrl,
-                      label: account.label,
+                      label: codexMuxAccountLabel(intl, account, index),
                       className: "size-7",
                     }),
                     (0, __CODEX_MUX_JSX__.jsx)("span", {
-                      children: account.planLabel
-                        ? `${account.label} · ${account.planLabel}`
-                        : account.label,
+                      children: codexMuxAccountTitle(intl, account, index),
                     }),
                   ],
                 },
