@@ -474,6 +474,7 @@ function CodexMuxAccountMenu() {
   const [managing, setManaging] = __CODEX_MUX_REACT__.useState(false);
   const [pendingRemoval, setPendingRemoval] = __CODEX_MUX_REACT__.useState(null);
   const [removalError, setRemovalError] = __CODEX_MUX_REACT__.useState("");
+  const [resetCounts, setResetCounts] = __CODEX_MUX_REACT__.useState({});
   const loginAccountId = login?.accountId || null;
 
   const refresh = __CODEX_MUX_REACT__.useCallback(async () => {
@@ -556,6 +557,30 @@ function CodexMuxAccountMenu() {
       total + (weekly == null ? 0 : Math.max(0, 100 - weekly.usedPercent)),
     0,
   );
+
+  // Reset credits are fetched per account. Keying the effect on the connected ids
+  // refreshes them when the menu opens or the pool changes, without adding a request
+  // to every poll.
+  const connectedIds = connected.map((account) => account.id).join(",");
+  __CODEX_MUX_REACT__.useEffect(() => {
+    if (!connectedIds) return;
+    let live = true;
+    Promise.all(
+      connectedIds.split(",").map(async (id) => {
+        try {
+          const resets = await codexMuxRateLimitResets(id);
+          return [id, Math.max(0, resets.available_count || 0)];
+        } catch {
+          return [id, null];
+        }
+      }),
+    ).then((entries) => {
+      if (live) setResetCounts(Object.fromEntries(entries));
+    });
+    return () => {
+      live = false;
+    };
+  }, [connectedIds]);
 
   async function addSubscription(event) {
     event.preventDefault();
@@ -762,6 +787,7 @@ function CodexMuxAccountMenu() {
   for (const account of listedAccounts) {
     const weekly = codexMuxWeeklyWindow(account.rateLimits);
     const remaining = weekly == null ? null : Math.max(0, 100 - weekly.usedPercent);
+    const resetCount = account.connected ? resetCounts[account.id] ?? null : null;
     rows.push(
       (0, __CODEX_MUX_JSX__.jsx)(
         __CODEX_MUX_MENU_ITEM__,
@@ -772,12 +798,31 @@ function CodexMuxAccountMenu() {
               imageUrl: account.profileImageUrl,
               label: account.label,
             }),
-          SubText: !account.connected
-            ? intl.formatMessage(CODEX_MUX_MESSAGES.signInUnfinished)
-            : account.email
-              ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, { email: account.email })
-              : account.planType ||
-                intl.formatMessage(CODEX_MUX_MESSAGES.chatgptSubscription),
+          SubText: (0, __CODEX_MUX_JSX__.jsxs)("span", {
+            className: "flex min-w-0 flex-col",
+            children: [
+              (0, __CODEX_MUX_JSX__.jsx)("span", {
+                className: "truncate",
+                children: !account.connected
+                  ? intl.formatMessage(CODEX_MUX_MESSAGES.signInUnfinished)
+                  : account.email
+                    ? (0, __CODEX_MUX_JSX__.jsx)(CodexMuxMaskedEmail, {
+                        email: account.email,
+                      })
+                    : account.planType ||
+                      intl.formatMessage(CODEX_MUX_MESSAGES.chatgptSubscription),
+              }),
+              (0, __CODEX_MUX_JSX__.jsx)(CodexMuxUsageBar, {
+                remaining,
+                title:
+                  remaining == null
+                    ? undefined
+                    : intl.formatMessage(CODEX_MUX_MESSAGES.percentRemaining, {
+                        percent: Math.round(remaining),
+                      }),
+              }),
+            ],
+          }),
           className: "group",
           onSelect:
             managing && !account.controller
@@ -797,9 +842,25 @@ function CodexMuxAccountMenu() {
                     : CODEX_MUX_MESSAGES.remove,
                 ),
               })
-            : (0, __CODEX_MUX_JSX__.jsx)("span", {
-                className: "text-token-description-foreground tabular-nums",
-                children: remaining == null ? "–" : `${Math.round(remaining)}%`,
+            : (0, __CODEX_MUX_JSX__.jsxs)("span", {
+                className:
+                  "flex items-center gap-1.5 text-token-description-foreground tabular-nums",
+                children: [
+                  (0, __CODEX_MUX_JSX__.jsx)("span", {
+                    children: remaining == null ? "–" : `${Math.round(remaining)}%`,
+                  }),
+                  resetCount == null
+                    ? null
+                    : (0, __CODEX_MUX_JSX__.jsx)("span", {
+                        className: "text-xs",
+                        style: { color: "rgb(34 197 94)" },
+                        title: intl.formatMessage(
+                          CODEX_MUX_MESSAGES.resetsAvailable,
+                          { count: resetCount },
+                        ),
+                        children: `♻${resetCount}`,
+                      }),
+                ],
               }),
           children: account.planLabel
             ? `${account.label} · ${account.planLabel}`
@@ -1075,6 +1136,32 @@ function CodexMuxCopyIcon(props) {
           strokeLinecap: "round",
         }),
       ],
+    }),
+  });
+}
+
+// The bar warns before the allowance runs out: blue while there is room, orange
+// under 30 percent, red under 10.
+function codexMuxUsageBarColor(remaining) {
+  if (remaining <= 10) return "rgb(239 68 68)";
+  if (remaining <= 30) return "rgb(249 115 22)";
+  return "rgb(59 130 246)";
+}
+
+function CodexMuxUsageBar({ remaining, title }) {
+  if (remaining == null) return null;
+  const width = Math.max(0, Math.min(100, remaining));
+  return (0, __CODEX_MUX_JSX__.jsx)("span", {
+    className: "mt-1 block h-0.5 w-full overflow-hidden rounded-full",
+    style: { backgroundColor: "rgb(107 114 128 / 0.35)" },
+    title,
+    "aria-hidden": true,
+    children: (0, __CODEX_MUX_JSX__.jsx)("span", {
+      className: "block h-full rounded-full",
+      style: {
+        width: `${width}%`,
+        backgroundColor: codexMuxUsageBarColor(width),
+      },
     }),
   });
 }
