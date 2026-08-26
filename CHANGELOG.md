@@ -45,6 +45,19 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
   `actions/setup-node` v6 → v7.0.0. Two of those upstream branches were cut before the
   project rename, so their content was applied rather than merged.
 
+### Fixed
+
+- Failover when a subscription runs out mid-turn. `turn/start` is answered as soon as
+  the turn is accepted, so a usage limit reached while the turn runs never appears in
+  that response: the app-server reports it afterwards through an `error` notification.
+  Only the response was inspected, so the chat stopped at the limit instead of moving
+  on. Turns a subscription has accepted are now tracked, the notification is acted on,
+  and the chat continues on another subscription. If none has capacity, the original
+  error is released rather than swallowed.
+- `error` notifications now reach the interface from every subscription. They were
+  forwarded only for the Primary account, so a failure on any other subscription was
+  silent.
+
 ### Removed
 
 - Code signing, Apple team identifier rewriting, the independently signed Computer Use

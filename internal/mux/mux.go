@@ -65,11 +65,14 @@ type Multiplexer struct {
 	initializeParams json.RawMessage
 	initialized      bool
 
-	externalMu     sync.Mutex
-	externalRoutes map[string]externalRoute
-	serverMu       sync.Mutex
-	serverRoutes   map[string]serverRequestRoute
-	serverSequence atomic.Uint64
+	externalMu          sync.Mutex
+	externalRoutes      map[string]externalRoute
+	turnsMu             sync.Mutex
+	inFlightTurns       map[string]inFlightTurn
+	withheldCompletions map[string]struct{}
+	serverMu            sync.Mutex
+	serverRoutes        map[string]serverRequestRoute
+	serverSequence      atomic.Uint64
 
 	outputMu sync.Mutex
 	eventsMu sync.RWMutex
@@ -104,6 +107,8 @@ func New(options Options) (*Multiplexer, error) {
 		children:             make(map[string]*backend.Child),
 		inbound:              make(chan backend.Inbound, 1024),
 		externalRoutes:       make(map[string]externalRoute),
+		inFlightTurns:        make(map[string]inFlightTurn),
+		withheldCompletions:  make(map[string]struct{}),
 		serverRoutes:         make(map[string]serverRequestRoute),
 		events:               make(map[chan Event]struct{}),
 		profileClient:        &http.Client{Timeout: 10 * time.Second},
@@ -306,6 +311,11 @@ func (m *Multiplexer) forwardWithExclusions(accountID string, message protocol.M
 		m.externalMu.Unlock()
 		return err
 	}
+	if message.Method == "turn/start" {
+		m.rememberInFlightTurn(
+			threadIDFromParams(message.Params), accountID, message.Params, excluded,
+		)
+	}
 	return nil
 }
 
@@ -480,6 +490,25 @@ func (m *Multiplexer) handleInbound(inbound backend.Inbound) {
 		go m.forwardAggregatedRateLimitNotification(inbound.Raw)
 		return
 	}
+	if message.Method == "error" {
+		if notice, ok := usageLimitNotification(message.Params); ok &&
+			m.beginTurnFailover(inbound, notice) {
+			return
+		}
+	}
+	if message.Method == "turn/completed" {
+		if notice, ok := decodeTurnCompleted(message.Params); ok {
+			if m.turnCompletedIsWithheld(notice.ThreadID, inbound.AccountID) {
+				go m.publishAccountRefresh(inbound.AccountID)
+				return
+			}
+			// A failed turn keeps its record: the error notification that explains the
+			// failure can arrive after the completion, and it is what moves the chat.
+			if notice.Turn.Status != "failed" {
+				m.forgetInFlightTurn(notice.ThreadID, inbound.AccountID)
+			}
+		}
+	}
 	if message.Method == "thread/started" {
 		if threadID := threadIDFromNotification(message.Params); threadID != "" {
 			_ = m.store.SetThreadOwner(threadID, inbound.AccountID)
@@ -546,6 +575,9 @@ func (m *Multiplexer) forwardServerRequest(inbound backend.Inbound) {
 func (m *Multiplexer) shouldForwardNotification(accountID, method string) bool {
 	controller, ok := m.store.Controller()
 	if ok && controller.ID == accountID {
+		return true
+	}
+	if method == "error" {
 		return true
 	}
 	return strings.HasPrefix(method, "thread/") ||
