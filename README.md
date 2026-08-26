@@ -1,4 +1,4 @@
-# Codex Subscription Router
+# Codex Subscription Router (Windows Port)
 
 ![Multi-subscription account menu](screenshots/account-menu.png)
 
