@@ -19,6 +19,30 @@
       "commit": "ca5951b12b9e84cf312be6387dac11597e991e2d",
       "decision": "内容のみ適用",
       "note": "分岐元 c5c499b が先端より 3 コミット前。merge 不可。SHA の差し替えだけを適用した。"
+    },
+    {
+      "ref": "upstream PR #13 (bypass-external-provider-quota)",
+      "commit": "6124703",
+      "decision": "適用",
+      "note": "外部プロバイダをクォータ外へルーティング。共有部分のみで完結。README 1 行は日本語で作り直し、import のモジュールパスを本 fork へ揃えた。未マージ PR のため上流の変更に追随が必要。"
+    },
+    {
+      "ref": "upstream PR #21 (remove-subscription)",
+      "commit": null,
+      "decision": "保留",
+      "note": "サブスクリプション削除。孤立アカウント問題を解決するため価値は高いが、ui/account-menu.js の識別子束縛の読み替えと再ビルド検証が必要。"
+    },
+    {
+      "ref": "upstream PR #20 (codex/import-auth-json)",
+      "commit": null,
+      "decision": "保留",
+      "note": "auth.json インポート。デバイスコード認証の代替。#21 と UI 変更が重なるため後続で扱う。"
+    },
+    {
+      "ref": "upstream PR #14 / #17 / #18",
+      "commit": null,
+      "decision": "対象外",
+      "note": "#14 は macOS ビルドのアンカー、#17 は削除済み install.sh、#18 は削除済みの署名処理。"
     }
   ]
 }
