@@ -15,6 +15,11 @@ Codex Subscription Router は公式 ChatGPT デスクトップアプリのロー
 の fork である。オリジナルは macOS 版として設計・実装されており、本 fork はそれを Windows 版へ
 移植し、日本語化したものである。設計の中核は上流の成果であり、詳しくは [謝辞](#謝辞) を参照。
 
+> This repository is a Windows port of
+> [b-nnett/codex-subscription-router](https://github.com/b-nnett/codex-subscription-router),
+> with its interface localized into Japanese. The core design is upstream's work —
+> see [Acknowledgements](#acknowledgements). On macOS, use the original instead.
+
 > [!WARNING]
 > 本プロジェクトは非公式で、公式ビルドのバージョンに強く依存する。OpenAI とは無関係であり、
 > サポートも受けられない。利用前にソースを確認し、接続する各サブスクリプションに適用される
@@ -262,6 +267,33 @@ npm run upstream:check -- --fetch
 上流は macOS 版として開発が続いている。macOS を使う場合は本 fork ではなく
 [オリジナル](https://github.com/b-nnett/codex-subscription-router) を利用すること。
 本 fork の不具合や要望を上流へ持ち込まないよう注意する。
+
+## Acknowledgements
+
+This project starts from
+[codex-subscription-router](https://github.com/b-nnett/codex-subscription-router)
+by Bennett Blackham. The following design and implementation are upstream's
+work, and this fork inherits them:
+
+- The multiplexing architecture that fans one app-server connection out to one
+  Codex child per account.
+- Assigning new chats by how much weekly allowance is at risk before it resets,
+  with a bounded boost for banked usage resets.
+- Pinning a thread to one subscription and handing it over only once that
+  subscription is depleted.
+- Isolating a Codex home per account while sharing only managed configuration.
+- The fail-closed patching policy that stops when a single expected anchor is
+  missing.
+- The loopback-only, token-authenticated control API and the security model
+  around it.
+
+What this fork adds is replacing the platform with Windows and localizing the
+interface into Japanese; none of the thinking above was changed. Thank you for
+publishing such a solid foundation.
+
+Upstream continues as the macOS build. On macOS, use
+[the original](https://github.com/b-nnett/codex-subscription-router) rather than
+this fork, and please do not bring issues or requests from this port upstream.
 
 ## ライセンス
 
