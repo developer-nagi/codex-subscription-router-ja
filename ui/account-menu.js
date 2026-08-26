@@ -1206,30 +1206,6 @@ function CodexMuxAccountAvatar({ imageUrl, label, className }) {
   });
 }
 
-function CodexMuxOverlappingAvatars({ accounts, size = "size-20" }) {
-  const overlapClass = size === "size-20" ? "-ml-10" : "-ml-2";
-  return (0, __CODEX_MUX_JSX__.jsx)("div", {
-    className: "flex items-center justify-center",
-    children: accounts.map((account, index) =>
-      (0, __CODEX_MUX_JSX__.jsx)(
-        "span",
-        {
-          className: `${index === 0 ? "" : overlapClass} rounded-full border-4 border-token-bg-primary`,
-          title: account.planLabel
-            ? `${account.label} · ${account.planLabel}`
-            : account.label,
-          children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
-            imageUrl: account.profileImageUrl,
-            label: account.label,
-            className: size,
-          }),
-        },
-        account.id,
-      ),
-    ),
-  });
-}
-
 function CodexMuxUseConnectedAccounts() {
   const [accounts, setAccounts] = __CODEX_MUX_REACT__.useState(
     globalThis.__codexMuxCombinedProfileAccounts || [],
@@ -1260,30 +1236,51 @@ function CodexMuxProfileAvatarStack() {
   const intl = __CODEX_MUX_INTL__();
   const accounts = CodexMuxUseConnectedAccounts();
   if (accounts.length < 2) return null;
+  // The header reserves a single avatar-sized slot. A plain row of avatars is a flex
+  // child of that slot, so it is compressed into ellipses. Keep the slot's own box and
+  // centre the wider stack over it instead, and stop each avatar from shrinking.
   return (0, __CODEX_MUX_JSX__.jsx)("div", {
-    className: "flex items-center justify-center",
+    className: "relative",
+    style: { width: 80, height: 80, flexShrink: 0 },
     "aria-label": intl.formatMessage(CODEX_MUX_MESSAGES.connectedCount, {
       count: accounts.length,
     }),
-    children: accounts.map((account, index) =>
-      (0, __CODEX_MUX_JSX__.jsx)(
-        "span",
-        {
-          className:
-            "rounded-full border-4 border-token-bg-primary transition-transform hover:z-10 hover:scale-105",
-          style: { marginLeft: index === 0 ? 0 : -20, zIndex: index },
-          title: account.planLabel
-            ? `${account.label} · ${account.planLabel}`
-            : account.label,
-          children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
-            imageUrl: account.profileImageUrl,
-            label: account.label,
-            className: "size-20",
-          }),
-        },
-        account.id,
+    children: (0, __CODEX_MUX_JSX__.jsx)("div", {
+      className: "flex items-center",
+      style: {
+        // Without an explicit width the absolute row shrinks to the slot and the
+        // avatars overflow to one side, which offsets the centring translate.
+        width: "max-content",
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+      },
+      children: accounts.map((account, index) =>
+        (0, __CODEX_MUX_JSX__.jsx)(
+          "span",
+          {
+            className:
+              "rounded-full border-4 border-token-bg-primary transition-transform hover:z-10 hover:scale-105",
+            style: {
+              position: "relative",
+              flexShrink: 0,
+              marginLeft: index === 0 ? 0 : -20,
+              zIndex: index,
+            },
+            title: account.planLabel
+              ? `${account.label} · ${account.planLabel}`
+              : account.label,
+            children: (0, __CODEX_MUX_JSX__.jsx)(CodexMuxAccountAvatar, {
+              imageUrl: account.profileImageUrl,
+              label: account.label,
+              className: "size-20 shrink-0",
+            }),
+          },
+          account.id,
+        ),
       ),
-    ),
+    }),
   });
 }
 
