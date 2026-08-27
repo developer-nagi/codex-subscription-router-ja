@@ -32,11 +32,8 @@ original instead.
   with a bounded boost for accounts holding banked usage resets.
 - **Sticky threads.** Once assigned, a thread returns to the same subscription unless
   that subscription is depleted.
-- **Automatic failover.** A depleted thread continues through another account with
-  capacity. When the whole pool is empty, one combined alert is shown.
-- **Continuing a running chat.** When a subscription runs out mid-turn, the turn moves to
-  one with room and the chat carries on, goal included. The chat itself stays where it
-  is; see [Continuing a chat when a subscription runs out](#continuing-a-chat-when-a-subscription-runs-out).
+- **Pooled depletion.** When every connected subscription is empty, one combined alert is
+  shown rather than one per account.
 - **Which subscription is answering.** The composer names the subscription the open chat
   is running on, and its remaining allowance.
 - **Quiet upsell.** The offer to buy credits or invite a friend waits until every
@@ -175,41 +172,30 @@ can be cleared from there.
 | --- | --- |
 | New chat | Assigned by quota at risk, banked resets, and short-window pressure |
 | Follow-up | Sent to the thread's persisted account owner |
-| Owner depleted | Continued through another account with capacity |
-| Owner depleted mid-turn | The turn moves to an account with room; the chat stays put |
+| Owner depleted | Reports the limit; the chat stays with its subscription |
 | Every account depleted | One combined alert with the next known reset |
 | Account disabled | Excluded from routing and pooled usable quota |
 | Custom provider or non-OpenAI base URL | Sent through the account's configured Codex provider without using pooled ChatGPT quota |
 
-## Continuing a chat when a subscription runs out
+## Why a chat is never moved between subscriptions
 
-A new chat simply starts on a subscription that has room. A chat already running is
-harder, because a chat is more than its history.
+A chat belongs to one subscription for its whole life. When that subscription runs out,
+the chat reports the limit exactly as the official app does; it is not moved.
 
-`turn/start` is answered as soon as the subscription accepts the turn, so a limit reached
-while the turn runs never appears in that response - it arrives afterwards, as an `error`
-notification. Setting a thread's goal runs a turn too, through a request of its own.
-Both are recognised, and the turn is replayed on a subscription with room.
+That is a conclusion from measurement, not a gap. The app-server finds a chat by its id
+inside its own Codex home, and a chat's turns are rebuilt into that home's own store by a
+writer attached to the loaded session - reading a chat never advances it. So a
+subscription handed a chat cannot show it until it has read the whole history, and the
+subscription that has been reading it stops at whatever it had read. Worse, the writer
+demands the history's records be numbered without a break, and if they are not it stops
+for good, silently, reporting nothing to anyone.
 
-**The turn moves; the chat does not.** A chat's turns are rebuilt into whichever
-subscription's own store, from a history that is read as the chat is used, and on a long
-chat that rebuilding is nowhere near finished. A subscription just given the history
-therefore cannot show the chat yet, and a chat handed over opened empty. The history file
-is shared rather than copied, so whatever the running subscription appends is visible to
-the one that owns the chat: reading stays where it works, and only the work moves.
+Sharing one history file between two subscriptions was tried and it corrupts the chat:
+each app-server keeps its own record numbering, so two of them writing to one file
+interleave two sequences into it, and the chat can then be displayed by neither. This was
+not theoretical - it happened to a real 804 MB chat, whose numbering breaks at 717 MB.
 
-The chat's goal is carried across before the handover resumes it, which is what keeps a
-running goal running. A goal stopped because its subscription ran out is carried across
-as running, since the reason it stopped does not apply where it is going.
-
-This is behind an opt-in while it is proven out:
-
-```powershell
-$env:CODEX_MUX_THREAD_HANDOVER = "1"
-```
-
-Without it a chat whose subscription is out reports the limit, exactly as the official
-app does, and nothing moves.
+New chats are routed by quota, which needs no move and is unaffected.
 
 ## Update and rebuild
 
@@ -281,8 +267,8 @@ $env:CODEX_MUX_TRACE = "$env:TEMP\codex-mux-trace.log"
   subscription switching on Settings → Plugins. The combined profile display itself
   works, and the composer names the subscription in place of the macOS build's
   "Subscription" row in the thread summary. See [Compatibility](docs/COMPATIBILITY.md).
-- Continuing a running chat on another subscription is opt-in, and the chat stays with
-  the subscription that can display it while its turns run elsewhere.
+- A chat that is already running cannot continue on another subscription. See
+  [Why a chat is never moved between subscriptions](#why-a-chat-is-never-moved-between-subscriptions).
 - The initial merged history fetch is limited to 500 threads per account.
 - Combined "skills explored" totals can count the same skill once per account, because
   the upstream profile response exposes counts rather than skill IDs.

@@ -72,20 +72,24 @@ func (t *tracer) traceInbound(accountID string, message protocol.Message) {
 			message.Error.Code, message.Error.Message,
 			truncate(string(message.Error.Data), 300))
 	}
-	switch method {
-	case "error":
-		var notice errorNotification
+	// An "error" notification is how a subscription reports that a turn failed, and its
+	// reason is the useful part. It is decoded here rather than anywhere else because
+	// nothing else needs it: a chat is never moved between subscriptions.
+	if method == "error" {
+		var notice struct {
+			ThreadID  string `json:"threadId"`
+			TurnID    string `json:"turnId"`
+			WillRetry bool   `json:"willRetry"`
+			Error     struct {
+				CodexErrorInfo json.RawMessage `json:"codexErrorInfo"`
+			} `json:"error"`
+		}
 		if json.Unmarshal(params, &notice) == nil {
 			detail = fmt.Sprintf(
 				"thread=%s turn=%s willRetry=%t info=%s",
 				notice.ThreadID, notice.TurnID, notice.WillRetry,
 				strings.Trim(string(notice.Error.CodexErrorInfo), `"`),
 			)
-		}
-	case "turn/completed", "turn/started":
-		if notice, ok := decodeTurnCompleted(params); ok {
-			detail = fmt.Sprintf("thread=%s turn=%s status=%s",
-				notice.ThreadID, notice.Turn.ID, notice.Turn.Status)
 		}
 	}
 	t.write("in", accountID, label, detail)

@@ -5,6 +5,27 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+### Removed
+
+- Moving a running chat to another subscription, and everything built for it: sharing the
+  history file, carrying the goal across, and routing a chat's work away from the
+  subscription that owns it. It cannot be done on this build, and attempting it damages
+  the chat.
+
+  The app-server finds a chat by its id inside its own Codex home, and a chat's turns are
+  rebuilt into that home's own store by a writer attached to the loaded session - reading
+  a chat never advances it. A subscription handed a chat therefore cannot show it until it
+  has read the whole history, while the subscription that had been reading it stops at
+  whatever it had read. The writer also demands the history's records be numbered without
+  a break, and stops permanently and silently when they are not.
+
+  Sharing one history file between two subscriptions corrupts the chat outright: each
+  app-server keeps its own record numbering, so two writing to one file interleave two
+  sequences into it. Measured on a real 804 MB chat, whose numbering breaks at 717 MB and
+  which neither subscription can now display in full.
+
+  Routing a NEW chat by quota needs no move and is unaffected.
+
 ### Fixed
 
 - Text typed into a turn already under way reaches the turn. It is sent as a steer, and
@@ -94,8 +115,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ### Continuing a chat when its subscription runs out
 
-A running chat now continues on a subscription with room, including one running a goal.
-It is behind `CODEX_MUX_THREAD_HANDOVER=1` while it is proven out.
+**Withdrawn after release - see Unreleased.** It damages the chat and cannot be done on
+this build. What 0.2.0 shipped, behind `CODEX_MUX_THREAD_HANDOVER=1`, was this:
 
 **The turn moves; the chat does not.** A chat's turns are rebuilt into whichever
 subscription's own store, from a history that is read as the chat is used. On a long chat

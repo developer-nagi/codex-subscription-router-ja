@@ -6,30 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/developer-nagi/codex-subscription-router-win/internal/protocol"
 	"github.com/developer-nagi/codex-subscription-router-win/internal/state"
 )
-
-func TestIsUsageLimitResponseRecognizesStructuredError(t *testing.T) {
-	message := protocol.Message{Error: &protocol.RPCError{
-		Code:    -32000,
-		Message: "turn failed",
-		Data:    json.RawMessage(`{"codexErrorInfo":"usage_limit_exceeded"}`),
-	}}
-	if !isUsageLimitResponse(message) {
-		t.Fatal("expected usage-limit error to be recognized")
-	}
-}
-
-func TestIsUsageLimitResponseIgnoresUnrelatedError(t *testing.T) {
-	message := protocol.Message{Error: &protocol.RPCError{
-		Code:    -32000,
-		Message: "workspace folder is unavailable",
-	}}
-	if isUsageLimitResponse(message) {
-		t.Fatal("unrelated error was misclassified as a usage limit")
-	}
-}
 
 func TestBypassesChatGPTQuotaForExternalModels(t *testing.T) {
 	cases := []json.RawMessage{
