@@ -285,9 +285,9 @@ func (m *Multiplexer) routeExistingRequest(message protocol.Message) {
 		m.write(protocol.Failure(message.ID, -32022, "no controller account is configured"))
 		return
 	}
-	// Reading a chat stays with the subscription that can show it. A turn goes to
-	// whichever subscription took the work over when this one ran out.
-	if startsTurn(message.Method) && threadID != "" {
+	// Reading a chat stays with the subscription that can show it. Its work goes to
+	// whichever subscription took over when this one ran out.
+	if followsTurn(message.Method) && threadID != "" {
 		if host, ok := m.turnHost(threadID); ok && host != accountID {
 			trace.note(host, "turn-host", "thread="+threadID)
 			if err := m.forward(host, message); err == nil {

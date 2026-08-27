@@ -5,6 +5,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- Text typed into a turn already under way reaches the turn. It is sent as a steer, and
+  requests were routed to whichever subscription owns the chat while only the turn itself
+  had moved, so a steer arrived at a subscription with no such turn running and the words
+  were lost. Anything about the turn - steering it, interrupting it, its goal - now
+  follows the subscription running it, while reading the chat stays with the subscription
+  that can show it.
+
 ## [0.2.0] - 2026-08-27
 
 ### Changed

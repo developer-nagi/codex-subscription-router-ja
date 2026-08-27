@@ -33,6 +33,21 @@ func threadHandoverEnabled() bool {
 	return strings.TrimSpace(os.Getenv("CODEX_MUX_THREAD_HANDOVER")) == "1"
 }
 
+// followsTurn reports whether a request acts on a chat's work rather than on the chat
+// itself.
+//
+// When a chat's work moves to another subscription, the chat stays where it is, so a
+// request is only routed by who owns the chat if it is about the chat. Anything about the
+// turn has to reach the subscription actually running it: text typed into a turn already
+// under way is a steer, and a steer sent to the subscription that merely owns the chat
+// lands nowhere - the words are simply lost. The same is true of interrupting a turn, and
+// of a goal, which is written to whichever subscription is running it.
+func followsTurn(method string) bool {
+	return strings.HasPrefix(method, "turn/") ||
+		strings.HasPrefix(method, "thread/goal/") ||
+		method == "thread/inject_items"
+}
+
 // startsTurn reports whether a request makes a subscription run a turn.
 //
 // A method missing from this list is charged to the subscription that receives it and
