@@ -21,6 +21,13 @@ import (
 
 const requestTimeout = 30 * time.Second
 
+// The capacity check in front of a turn is an optimisation: it keeps work away from a
+// subscription already known to be out. It must never hold a turn up, so it gets a
+// short budget of its own and falls through to the owner when the subscription does
+// not answer in time. A limit reached anyway is caught by the error notification the
+// turn produces, which is what moves the chat.
+const capacityCheckTimeout = 3 * time.Second
+
 type Options struct {
 	RealExecutable string
 	RealArgs       []string
@@ -278,7 +285,7 @@ func (m *Multiplexer) routeExistingRequest(message protocol.Message) {
 		m.write(protocol.Failure(message.ID, -32022, "no controller account is configured"))
 		return
 	}
-	if message.Method == "turn/start" && threadID != "" {
+	if startsTurn(message.Method) && threadID != "" {
 		go m.routeTurnStart(message, threadID, accountID)
 		return
 	}
@@ -311,11 +318,12 @@ func (m *Multiplexer) forwardWithExclusions(accountID string, message protocol.M
 		m.externalMu.Unlock()
 		return err
 	}
-	if message.Method == "turn/start" {
+	if startsTurn(message.Method) {
 		m.rememberInFlightTurn(
-			threadIDFromParams(message.Params), accountID, message.Params, excluded,
+			threadIDFromParams(message.Params), accountID, message.Method, message.Params, excluded,
 		)
 	}
+	trace.traceOutbound(accountID, message.Method, message.Params)
 	return nil
 }
 
@@ -342,15 +350,17 @@ func (m *Multiplexer) routeTurnStart(message protocol.Message, threadID, ownerID
 		}
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*requestTimeout)
-	defer cancel()
-	snapshot, err := m.accountSnapshotWithProfile(ctx, ownerID, false)
+	checkCtx, cancelCheck := context.WithTimeout(context.Background(), capacityCheckTimeout)
+	snapshot, err := m.accountSnapshotWithProfile(checkCtx, ownerID, false)
+	cancelCheck()
 	if err != nil || accountHasCapacity(snapshot) {
 		if err := m.forward(ownerID, message); err != nil {
 			m.write(protocol.Failure(message.ID, -32023, err.Error()))
 		}
 		return
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*requestTimeout)
+	defer cancel()
 	excluded := map[string]struct{}{ownerID: {}}
 	m.failoverTurn(ctx, message, threadID, ownerID, excluded)
 }
@@ -396,7 +406,10 @@ func (m *Multiplexer) resumeThreadOnAccount(ctx context.Context, threadID, sourc
 	if !ok {
 		return fmt.Errorf("target subscription is unavailable")
 	}
-	readParams, _ := json.Marshal(map[string]any{"threadId": threadID, "includeTurns": true})
+	// Only the thread's identity and location are needed to resume it. Asking for the
+	// turns as well reads the whole history, which on a long chat is slow enough to look
+	// like the app has stopped.
+	readParams, _ := json.Marshal(map[string]any{"threadId": threadID, "includeTurns": false})
 	readResponse, err := source.Request(ctx, "thread/read", readParams)
 	if err != nil {
 		return fmt.Errorf("read existing chat: %w", err)
@@ -459,6 +472,7 @@ func (m *Multiplexer) inboundLoop(ctx context.Context) {
 
 func (m *Multiplexer) handleInbound(inbound backend.Inbound) {
 	message := inbound.Message
+	trace.traceInbound(inbound.AccountID, message.Method, len(message.ID) > 0, message.Params)
 	if message.Method == "" && len(message.ID) > 0 {
 		key := protocol.RequestIDKey(message.ID)
 		m.externalMu.Lock()
@@ -468,7 +482,7 @@ func (m *Multiplexer) handleInbound(inbound backend.Inbound) {
 		}
 		m.externalMu.Unlock()
 		if ok {
-			if route.method == "turn/start" && isUsageLimitResponse(message) {
+			if startsTurn(route.method) && isUsageLimitResponse(message) {
 				if owner, ok := m.store.Account(route.accountID); ok && accountBypassesChatGPTQuota(route.message.Params, owner) {
 					message.ID = route.message.ID
 					m.write(message)

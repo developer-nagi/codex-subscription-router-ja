@@ -12,6 +12,21 @@ import (
 // of weekly allowance while a turn is already running.
 const usageLimitErrorInfo = "usageLimitExceeded"
 
+// startsTurn reports whether a request makes a subscription run a turn.
+//
+// turn/start is the obvious one, but setting a thread's goal runs a turn as well, under
+// its own request. A method missing from this list is charged to the subscription that
+// receives it and cannot be moved when that subscription runs out, so anything that
+// makes a subscription work belongs here.
+func startsTurn(method string) bool {
+	switch method {
+	case "turn/start", "thread/goal/set":
+		return true
+	default:
+		return false
+	}
+}
+
 // inFlightTurn is a turn a subscription has already accepted.
 //
 // turn/start answers as soon as the turn is accepted, so a usage limit reached while
@@ -20,6 +35,7 @@ const usageLimitErrorInfo = "usageLimitExceeded"
 // subscription rather than stopping at the limit.
 type inFlightTurn struct {
 	accountID string
+	method    string
 	params    json.RawMessage
 	excluded  map[string]struct{}
 }
@@ -80,7 +96,7 @@ func decodeTurnCompleted(params json.RawMessage) (turnCompletedNotification, boo
 }
 
 func (m *Multiplexer) rememberInFlightTurn(
-	threadID, accountID string, params json.RawMessage, excluded map[string]struct{},
+	threadID, accountID, method string, params json.RawMessage, excluded map[string]struct{},
 ) {
 	if threadID == "" {
 		return
@@ -89,6 +105,7 @@ func (m *Multiplexer) rememberInFlightTurn(
 	defer m.turnsMu.Unlock()
 	m.inFlightTurns[threadID] = inFlightTurn{
 		accountID: accountID,
+		method:    method,
 		params:    append(json.RawMessage(nil), params...),
 		excluded:  cloneAccountSet(excluded),
 	}
@@ -142,12 +159,14 @@ func (m *Multiplexer) turnCompletedIsWithheld(threadID, accountID string) bool {
 func (m *Multiplexer) beginTurnFailover(inbound backend.Inbound, notice errorNotification) bool {
 	turn, ok := m.takeInFlightTurn(notice.ThreadID, inbound.AccountID)
 	if !ok {
+		trace.note(inbound.AccountID, "failover-skipped", "no recorded turn for thread="+notice.ThreadID)
 		return false
 	}
 	if owner, exists := m.store.Account(inbound.AccountID); exists &&
 		accountBypassesChatGPTQuota(turn.params, owner) {
 		return false
 	}
+	trace.note(inbound.AccountID, "failover-start", "thread="+notice.ThreadID)
 	m.withholdTurnCompleted(notice.ThreadID, inbound.AccountID)
 	raw := append([]byte(nil), inbound.Raw...)
 	go m.continueTurnOnAnotherAccount(notice.ThreadID, inbound.AccountID, turn, raw)
@@ -202,8 +221,8 @@ func (m *Multiplexer) continueTurnOnAnotherAccount(
 	// The original turn/start was answered long ago, so the retry is sent under the
 	// multiplexer's own request id. The chat sees the new turn through the
 	// notifications the fallback subscription emits.
-	m.rememberInFlightTurn(threadID, fallback.ID, turn.params, excluded)
-	if _, err := child.Request(ctx, "turn/start", turn.params); err != nil {
+	m.rememberInFlightTurn(threadID, fallback.ID, turn.method, turn.params, excluded)
+	if _, err := child.Request(ctx, turn.method, turn.params); err != nil {
 		m.forgetInFlightTurn(threadID, fallback.ID)
 		surrender(err)
 		return

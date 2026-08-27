@@ -84,7 +84,7 @@ func newFailoverTestMultiplexer() *Multiplexer {
 func TestInFlightTurnBelongsToTheSubscriptionRunningIt(t *testing.T) {
 	multiplexer := newFailoverTestMultiplexer()
 	params := json.RawMessage(`{"threadId":"t1","input":[]}`)
-	multiplexer.rememberInFlightTurn("t1", "primary", params, map[string]struct{}{"gone": {}})
+	multiplexer.rememberInFlightTurn("t1", "primary", "turn/start", params, map[string]struct{}{"gone": {}})
 
 	if _, ok := multiplexer.takeInFlightTurn("t1", "secondary"); ok {
 		t.Fatal("another subscription must not take the turn")
@@ -92,6 +92,9 @@ func TestInFlightTurnBelongsToTheSubscriptionRunningIt(t *testing.T) {
 	turn, ok := multiplexer.takeInFlightTurn("t1", "primary")
 	if !ok {
 		t.Fatal("the subscription running the turn must be able to take it")
+	}
+	if turn.method != "turn/start" {
+		t.Fatalf("method = %q, want the request that started the turn", turn.method)
 	}
 	if string(turn.params) != string(params) {
 		t.Fatalf("params = %s, want %s", turn.params, params)
@@ -106,7 +109,7 @@ func TestInFlightTurnBelongsToTheSubscriptionRunningIt(t *testing.T) {
 
 func TestRememberInFlightTurnIgnoresATurnWithoutAThread(t *testing.T) {
 	multiplexer := newFailoverTestMultiplexer()
-	multiplexer.rememberInFlightTurn("", "primary", json.RawMessage(`{}`), nil)
+	multiplexer.rememberInFlightTurn("", "primary", "turn/start", json.RawMessage(`{}`), nil)
 	if len(multiplexer.inFlightTurns) != 0 {
 		t.Fatalf("recorded %d turns, want none", len(multiplexer.inFlightTurns))
 	}
@@ -114,7 +117,7 @@ func TestRememberInFlightTurnIgnoresATurnWithoutAThread(t *testing.T) {
 
 func TestForgetInFlightTurnOnlyClearsItsOwnSubscription(t *testing.T) {
 	multiplexer := newFailoverTestMultiplexer()
-	multiplexer.rememberInFlightTurn("t1", "primary", json.RawMessage(`{}`), nil)
+	multiplexer.rememberInFlightTurn("t1", "primary", "turn/start", json.RawMessage(`{}`), nil)
 	multiplexer.forgetInFlightTurn("t1", "secondary")
 	if len(multiplexer.inFlightTurns) != 1 {
 		t.Fatal("a completion from another subscription must not clear the turn")
@@ -137,5 +140,22 @@ func TestWithheldTurnCompletionIsConsumedOnce(t *testing.T) {
 	}
 	if multiplexer.turnCompletedIsWithheld("t1", "primary") {
 		t.Fatal("only one completion belongs to the abandoned turn")
+	}
+}
+
+func TestStartsTurnCoversEveryRequestThatRunsATurn(t *testing.T) {
+	// A goal runs a turn through its own request, which is how a chat kept stopping at
+	// the limit instead of moving to another subscription.
+	for _, method := range []string{"turn/start", "thread/goal/set"} {
+		if !startsTurn(method) {
+			t.Fatalf("%s runs a turn and must be treated as a turn start", method)
+		}
+	}
+	for _, method := range []string{
+		"turn/interrupt", "thread/goal/get", "thread/goal/clear", "thread/turns/list", "",
+	} {
+		if startsTurn(method) {
+			t.Fatalf("%s does not run a turn", method)
+		}
 	}
 }

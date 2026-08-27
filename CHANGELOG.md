@@ -54,6 +54,17 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
   on. Turns a subscription has accepted are now tracked, the notification is acted on,
   and the chat continues on another subscription. If none has capacity, the original
   error is released rather than swallowed.
+- Setting a thread's goal is a turn too. It runs through its own request rather than
+  `turn/start`, so it was neither checked against the subscription's remaining
+  allowance nor eligible for failover, and a goal on a depleted subscription simply
+  stopped.
+- The capacity check in front of a turn no longer holds the turn up. It waited up to a
+  minute for the subscription to answer, so a slow subscription froze the interface
+  before the request was even sent. It now has a short budget and falls through to the
+  owner, leaving the mid-turn failover to catch a limit reached anyway.
+- Resuming a chat on another subscription no longer reads its whole history. Only the
+  thread's identity and location are used, but every turn was being read, which on a
+  long chat took long enough to look like the app had stopped.
 - `error` notifications now reach the interface from every subscription. They were
   forwarded only for the Primary account, so a failure on any other subscription was
   silent.
