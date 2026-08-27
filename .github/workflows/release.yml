@@ -48,12 +48,16 @@ jobs:
       - name: Run checks
         run: npm run check
 
+      # The runner is Windows, so the default shell is PowerShell. Bash's ${NAME} is a
+      # PowerShell variable reference there, not an environment variable, and an
+      # undefined one expands to nothing - which left gh with no tag at all.
       - name: Create source-only GitHub release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${GITHUB_REF_NAME}"
-          --generate-notes
-          --draft
-          --title "${GITHUB_REF_NAME}"
-          --verify-tag
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            --generate-notes `
+            --draft `
+            --title $env:GITHUB_REF_NAME `
+            --verify-tag
