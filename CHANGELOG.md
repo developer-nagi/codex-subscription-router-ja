@@ -35,6 +35,18 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 - The Profile page shows that its statistics are pooled. With two or more connections it
   renders the connected accounts as overlapping avatars with "Combined profile". The
   statistics were already pooled, but a single account's identity hid that.
+- `CODEX_MUX_TRACE`. Set to a file path, it records the method names crossing the
+  multiplexer, with a thread id, an error code and message, and a subscription id. It
+  writes no prompt text, no results, and no credentials, and is off unless set. It is
+  what established that a goal runs its own request rather than `turn/start`.
+- Sharing a chat's history with another subscription. The app-server finds a chat by its
+  id inside its own Codex home, so a chat recorded under one subscription is invisible
+  to another however the path is passed. The receiving home is given a directory entry
+  for the same file - a hard link, since a history reaches hundreds of megabytes and
+  duplicating it during a handover is when that cost is least affordable - with a copy
+  as the fallback. The app-server reports a history as an extended-length Windows path
+  (`\\?\C:\...`), which is handled when the path is compared with its subscription's
+  home.
 - A process for taking upstream changes selectively. `npm run upstream:check` classifies
   unreviewed upstream commits, warns about branches cut from an older base, and lists the
   upstream's open pull requests, which mostly come from forks and never appear in
@@ -47,27 +59,45 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ### Fixed
 
-- Failover when a subscription runs out mid-turn. `turn/start` is answered as soon as
-  the turn is accepted, so a usage limit reached while the turn runs never appears in
-  that response: the app-server reports it afterwards through an `error` notification.
-  Only the response was inspected, so the chat stopped at the limit instead of moving
-  on. Turns a subscription has accepted are now tracked, the notification is acted on,
-  and the chat continues on another subscription. If none has capacity, the original
-  error is released rather than swallowed.
-- Setting a thread's goal is a turn too. It runs through its own request rather than
-  `turn/start`, so it was neither checked against the subscription's remaining
-  allowance nor eligible for failover, and a goal on a depleted subscription simply
-  stopped.
+- The merged chat list no longer reassigns chats at random. Every listing wrote down the
+  answering subscription as each chat's owner, and the subscriptions answer
+  concurrently, so a chat readable from more than one of them changed hands on nothing
+  more than which reply arrived last. Ownership is now recorded only for a chat that has
+  none, and a chat readable from several subscriptions is listed once, as its owner.
 - The capacity check in front of a turn no longer holds the turn up. It waited up to a
   minute for the subscription to answer, so a slow subscription froze the interface
-  before the request was even sent. It now has a short budget and falls through to the
-  owner, leaving the mid-turn failover to catch a limit reached anyway.
-- Resuming a chat on another subscription no longer reads its whole history. Only the
-  thread's identity and location are used, but every turn was being read, which on a
-  long chat took long enough to look like the app had stopped.
+  before the request was even sent. It now has a short budget of its own and falls
+  through to the owner when it expires.
+- Resuming a chat elsewhere no longer reads its whole history. Only the thread's
+  identity and location are used, but every turn was read as well - on a long chat that
+  is hundreds of megabytes, read at the moment it is least affordable.
 - `error` notifications now reach the interface from every subscription. They were
   forwarded only for the Primary account, so a failure on any other subscription was
   silent.
+
+### Known issue
+
+- **Moving an existing chat to another subscription is held back.** New chats are still
+  routed away from a subscription that is out, which needs no move and works.
+
+  A chat that is already running is a different matter. The move itself works: the
+  history is shared with the receiving subscription, and the chat resumes there. What
+  does not come with it is everything that subscription does not already know about the
+  chat. Its record lives in the original subscription's database, and its goal comes
+  back reported as cleared. A chat handed over was therefore opened on a subscription
+  that could not show it, which reads as a lost conversation - worse than the limit the
+  move was meant to work around. Nothing was actually lost: putting the chat back with
+  its original subscription restored both its history and its goal.
+
+  What is in place and works: a usage limit reached while a turn is running is
+  recognised. `turn/start` is answered as soon as the turn is accepted, so that limit
+  never appears in the response; the app-server reports it afterwards through an `error`
+  notification, and only the response used to be inspected. Setting a goal is a turn
+  too, through its own request. Both are now recognised, and the turns a subscription
+  accepts are tracked so one can be replayed elsewhere.
+
+  What is missing is handing over the chat's record, not the history. Set
+  `CODEX_MUX_THREAD_HANDOVER=1` to enable the move and help prove it out.
 
 ### Removed
 

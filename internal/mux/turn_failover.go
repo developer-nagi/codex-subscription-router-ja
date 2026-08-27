@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/developer-nagi/codex-subscription-router-win/internal/backend"
 )
@@ -12,12 +14,30 @@ import (
 // of weekly allowance while a turn is already running.
 const usageLimitErrorInfo = "usageLimitExceeded"
 
+// threadHandoverEnabled reports whether an existing chat may be moved to another
+// subscription when the one it belongs to runs out.
+//
+// The move itself works: the history is shared with the receiving subscription and the
+// chat resumes there. What does not survive is everything the receiving subscription
+// does not already know about the chat. A goal comes back reported as cleared, and the
+// chat's record lives in the original subscription's database, so handing the chat over
+// left it opened on a subscription that could not show its history. Losing a
+// conversation is worse than the limit the move was meant to work around, so the move is
+// held back until a moved chat is demonstrably as usable as it was before.
+//
+// Routing a NEW chat away from a subscription that is out is unaffected and still works:
+// nothing has to move, because the chat starts where there is room.
+//
+// Set CODEX_MUX_THREAD_HANDOVER=1 to take part in proving out the move.
+func threadHandoverEnabled() bool {
+	return strings.TrimSpace(os.Getenv("CODEX_MUX_THREAD_HANDOVER")) == "1"
+}
+
 // startsTurn reports whether a request makes a subscription run a turn.
 //
-// turn/start is the obvious one, but setting a thread's goal runs a turn as well, under
-// its own request. A method missing from this list is charged to the subscription that
-// receives it and cannot be moved when that subscription runs out, so anything that
-// makes a subscription work belongs here.
+// A method missing from this list is charged to the subscription that receives it and
+// cannot be moved when that subscription runs out, so anything that makes a subscription
+// work belongs here.
 func startsTurn(method string) bool {
 	switch method {
 	case "turn/start", "thread/goal/set":
@@ -157,6 +177,11 @@ func (m *Multiplexer) turnCompletedIsWithheld(threadID, accountID string) bool {
 // the notification: when it did, the notification is withheld and the failover reports
 // the original error itself if the chat cannot continue anywhere.
 func (m *Multiplexer) beginTurnFailover(inbound backend.Inbound, notice errorNotification) bool {
+	if !threadHandoverEnabled() {
+		trace.note(inbound.AccountID, "failover-held-back", "thread="+notice.ThreadID)
+		m.forgetInFlightTurn(notice.ThreadID, inbound.AccountID)
+		return false
+	}
 	turn, ok := m.takeInFlightTurn(notice.ThreadID, inbound.AccountID)
 	if !ok {
 		trace.note(inbound.AccountID, "failover-skipped", "no recorded turn for thread="+notice.ThreadID)

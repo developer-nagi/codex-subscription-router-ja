@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/developer-nagi/codex-subscription-router-win/internal/protocol"
 )
 
 // The multiplexer is silent by design, which makes a routing question hard to answer
@@ -50,18 +52,25 @@ func (t *tracer) write(direction, accountID, method, detail string) {
 }
 
 // traceInbound records a message coming back from a subscription. Params are inspected
-// only for the fields that explain routing.
-func (t *tracer) traceInbound(accountID string, method string, hasID bool, params json.RawMessage) {
+// only for the fields that explain routing, and an error is recorded because a request
+// that fails looks identical to one that succeeds otherwise.
+func (t *tracer) traceInbound(accountID string, message protocol.Message) {
 	if !t.enabled() {
 		return
 	}
+	method, params := message.Method, message.Params
 	label := method
 	if label == "" {
 		label = "<response>"
 	}
 	detail := ""
-	if hasID {
-		detail = "id=yes"
+	if len(message.ID) > 0 {
+		detail = "id=" + strings.Trim(string(message.ID), `"`)
+	}
+	if message.Error != nil {
+		detail += fmt.Sprintf(" ERROR code=%d message=%q data=%s",
+			message.Error.Code, message.Error.Message,
+			truncate(string(message.Error.Data), 300))
 	}
 	switch method {
 	case "error":
@@ -96,4 +105,11 @@ func (t *tracer) traceOutbound(accountID, method string, params json.RawMessage)
 
 func (t *tracer) note(accountID, what, detail string) {
 	t.write("--", accountID, what, detail)
+}
+
+func truncate(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit] + "..."
 }

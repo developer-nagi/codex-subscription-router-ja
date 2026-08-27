@@ -144,12 +144,8 @@ func TestWithheldTurnCompletionIsConsumedOnce(t *testing.T) {
 }
 
 func TestStartsTurnCoversEveryRequestThatRunsATurn(t *testing.T) {
-	// A goal runs a turn through its own request, which is how a chat kept stopping at
-	// the limit instead of moving to another subscription.
-	for _, method := range []string{"turn/start", "thread/goal/set"} {
-		if !startsTurn(method) {
-			t.Fatalf("%s runs a turn and must be treated as a turn start", method)
-		}
+	if !startsTurn("turn/start") {
+		t.Fatal("turn/start runs a turn and must be treated as a turn start")
 	}
 	for _, method := range []string{
 		"turn/interrupt", "thread/goal/get", "thread/goal/clear", "thread/turns/list", "",
@@ -157,5 +153,27 @@ func TestStartsTurnCoversEveryRequestThatRunsATurn(t *testing.T) {
 		if startsTurn(method) {
 			t.Fatalf("%s does not run a turn", method)
 		}
+	}
+}
+
+func TestAnExistingChatIsNotMovedUnlessAskedFor(t *testing.T) {
+	// Moving a chat left it opened on a subscription that could not show its history, and
+	// dropped its goal. Losing a conversation is worse than the limit the move works
+	// around, so the move waits for an opt-in.
+	t.Setenv("CODEX_MUX_THREAD_HANDOVER", "")
+	if threadHandoverEnabled() {
+		t.Fatal("an existing chat must stay where it is by default")
+	}
+	t.Setenv("CODEX_MUX_THREAD_HANDOVER", "1")
+	if !threadHandoverEnabled() {
+		t.Fatal("the opt-in must allow the move")
+	}
+}
+
+func TestSettingAGoalIsStillRecognisedAsATurn(t *testing.T) {
+	// The gate is on the move, not on what counts as a turn: a goal runs one, and that
+	// stays true so the pre-flight and the in-flight record both cover it.
+	if !startsTurn("thread/goal/set") {
+		t.Fatal("setting a goal runs a turn")
 	}
 }

@@ -26,12 +26,32 @@ func (m *Multiplexer) aggregateThreadList(request protocol.Message) {
 	wait.Wait()
 	close(results)
 
+	// A chat handed to another subscription is readable from both homes, because the
+	// handover shares one history file rather than copying it. List it once, as the
+	// subscription that owns it, and never let the listing decide ownership for a chat
+	// that already has an owner: the accounts answer concurrently, so that would reassign
+	// the chat at random and undo the handover.
 	threads := make([]map[string]any, 0)
+	position := make(map[string]int)
 	for accountResult := range results {
 		for _, thread := range accountResult.threads {
-			if threadID, ok := thread["id"].(string); ok {
-				_ = m.store.SetThreadOwner(threadID, accountResult.accountID)
+			threadID, ok := thread["id"].(string)
+			if !ok {
+				threads = append(threads, thread)
+				continue
 			}
+			owner, known := m.store.ThreadOwner(threadID)
+			if !known {
+				_ = m.store.SetThreadOwner(threadID, accountResult.accountID)
+				owner = accountResult.accountID
+			}
+			if index, seen := position[threadID]; seen {
+				if owner == accountResult.accountID {
+					threads[index] = thread
+				}
+				continue
+			}
+			position[threadID] = len(threads)
 			threads = append(threads, thread)
 		}
 	}

@@ -285,7 +285,7 @@ func (m *Multiplexer) routeExistingRequest(message protocol.Message) {
 		m.write(protocol.Failure(message.ID, -32022, "no controller account is configured"))
 		return
 	}
-	if startsTurn(message.Method) && threadID != "" {
+	if startsTurn(message.Method) && threadID != "" && threadHandoverEnabled() {
 		go m.routeTurnStart(message, threadID, accountID)
 		return
 	}
@@ -353,6 +353,9 @@ func (m *Multiplexer) routeTurnStart(message protocol.Message, threadID, ownerID
 	checkCtx, cancelCheck := context.WithTimeout(context.Background(), capacityCheckTimeout)
 	snapshot, err := m.accountSnapshotWithProfile(checkCtx, ownerID, false)
 	cancelCheck()
+	trace.note(ownerID, "capacity-check", fmt.Sprintf(
+		"method=%s thread=%s err=%v capacity=%t", message.Method, threadID, err, accountHasCapacity(snapshot),
+	))
 	if err != nil || accountHasCapacity(snapshot) {
 		if err := m.forward(ownerID, message); err != nil {
 			m.write(protocol.Failure(message.ID, -32023, err.Error()))
@@ -374,21 +377,27 @@ func (m *Multiplexer) failoverTurn(
 ) {
 	fallback, _, err := m.chooseAccountExcluding(ctx, excluded)
 	if err != nil {
+		trace.note(sourceAccountID, "failover-no-capacity", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		m.write(m.allSubscriptionsDepleted(ctx, message.ID))
 		return
 	}
+	trace.note(fallback.ID, "failover-target", fmt.Sprintf("thread=%s from=%s", threadID, sourceAccountID))
 	if err := m.resumeThreadOnAccount(ctx, threadID, sourceAccountID, fallback.ID); err != nil {
+		trace.note(fallback.ID, "failover-resume-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		m.write(protocol.Failure(message.ID, -32027, fmt.Sprintf("move chat to %s: %v", fallback.Label, err)))
 		return
 	}
 	if err := m.store.SetThreadOwner(threadID, fallback.ID); err != nil {
+		trace.note(fallback.ID, "failover-owner-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		m.write(protocol.Failure(message.ID, -32028, err.Error()))
 		return
 	}
 	if err := m.forwardWithExclusions(fallback.ID, message, excluded); err != nil {
+		trace.note(fallback.ID, "failover-forward-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		m.write(protocol.Failure(message.ID, -32023, err.Error()))
 		return
 	}
+	trace.note(fallback.ID, "failover-done", "thread="+threadID)
 	m.publish(Event{
 		Type:      "thread-failed-over",
 		AccountID: fallback.ID,
@@ -414,6 +423,9 @@ func (m *Multiplexer) resumeThreadOnAccount(ctx context.Context, threadID, sourc
 	if err != nil {
 		return fmt.Errorf("read existing chat: %w", err)
 	}
+	trace.note(sourceAccountID, "thread-read", fmt.Sprintf(
+		"thread=%s bytes=%d", threadID, len(readResponse.Result),
+	))
 	var readResult struct {
 		Thread struct {
 			ID            string `json:"id"`
@@ -425,20 +437,33 @@ func (m *Multiplexer) resumeThreadOnAccount(ctx context.Context, threadID, sourc
 	if err := json.Unmarshal(readResponse.Result, &readResult); err != nil {
 		return fmt.Errorf("decode existing chat: %w", err)
 	}
+	trace.note(sourceAccountID, "thread-read-fields", fmt.Sprintf(
+		"id=%q pathSet=%t cwdSet=%t provider=%q",
+		readResult.Thread.ID, readResult.Thread.Path != "", readResult.Thread.CWD != "",
+		readResult.Thread.ModelProvider,
+	))
 	if readResult.Thread.ID == "" || readResult.Thread.Path == "" {
 		return errors.New("existing chat has no resumable history path")
+	}
+	sharedPath, err := m.shareRolloutWithAccount(
+		readResult.Thread.Path, sourceAccountID, targetAccountID,
+	)
+	if err != nil {
+		return err
 	}
 	resumeParams, _ := json.Marshal(map[string]any{
 		"threadId":      threadID,
 		"history":       nil,
-		"path":          readResult.Thread.Path,
+		"path":          sharedPath,
 		"cwd":           readResult.Thread.CWD,
 		"model":         nil,
 		"modelProvider": readResult.Thread.ModelProvider,
 	})
 	if _, err := target.Request(ctx, "thread/resume", resumeParams); err != nil {
+		trace.note(targetAccountID, "thread-resume-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		return fmt.Errorf("resume existing chat: %w", err)
 	}
+	trace.note(targetAccountID, "thread-resume-ok", "thread="+threadID)
 	return nil
 }
 
@@ -472,7 +497,7 @@ func (m *Multiplexer) inboundLoop(ctx context.Context) {
 
 func (m *Multiplexer) handleInbound(inbound backend.Inbound) {
 	message := inbound.Message
-	trace.traceInbound(inbound.AccountID, message.Method, len(message.ID) > 0, message.Params)
+	trace.traceInbound(inbound.AccountID, message)
 	if message.Method == "" && len(message.ID) > 0 {
 		key := protocol.RequestIDKey(message.ID)
 		m.externalMu.Lock()
