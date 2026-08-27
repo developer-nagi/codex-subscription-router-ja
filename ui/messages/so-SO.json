@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Isticmaalka lama heli karo",
   "codexMux.depleted": "Waa dhammaaday",
   "codexMux.percentRemaining": "{percent}% ayaa hadhay",
-  "codexMux.allSubscriptionsDepleted": "Dhammaan rukunsiyada la xiray way dhammaadeen"
+  "codexMux.allSubscriptionsDepleted": "Dhammaan rukunsiyada la xiray way dhammaadeen",
+  "codexMux.threadSubscription": "Wadahadalkan wuxuu isticmaalayaa {label}"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Lietojums nav pieejams",
   "codexMux.depleted": "Izsmelts",
   "codexMux.percentRemaining": "Atlicis {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Visi savienotie abonementi ir izsmelti"
+  "codexMux.allSubscriptionsDepleted": "Visi savienotie abonementi ir izsmelti",
+  "codexMux.threadSubscription": "Šī tērzēšana izmanto {label}"
 }

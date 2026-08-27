@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Notkun ekki tiltæk",
   "codexMux.depleted": "Uppurið",
   "codexMux.percentRemaining": "{percent}% eftir",
-  "codexMux.allSubscriptionsDepleted": "Allar tengdar áskriftir eru uppurnar"
+  "codexMux.allSubscriptionsDepleted": "Allar tengdar áskriftir eru uppurnar",
+  "codexMux.threadSubscription": "Þetta spjall notar {label}"
 }

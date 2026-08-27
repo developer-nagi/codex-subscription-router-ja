@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "वापर उपलब्ध नाही",
   "codexMux.depleted": "संपले",
   "codexMux.percentRemaining": "{percent}% शिल्लक",
-  "codexMux.allSubscriptionsDepleted": "सर्व कनेक्ट केलेली सदस्यत्वे संपली आहेत"
+  "codexMux.allSubscriptionsDepleted": "सर्व कनेक्ट केलेली सदस्यत्वे संपली आहेत",
+  "codexMux.threadSubscription": "ही चॅट {label} वापरत आहे"
 }

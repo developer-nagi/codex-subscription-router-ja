@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "გამოყენება მიუწვდომელია",
   "codexMux.depleted": "ამოიწურა",
   "codexMux.percentRemaining": "დარჩა {percent}%",
-  "codexMux.allSubscriptionsDepleted": "ყველა დაკავშირებული გამოწერა ამოიწურა"
+  "codexMux.allSubscriptionsDepleted": "ყველა დაკავშირებული გამოწერა ამოიწურა",
+  "codexMux.threadSubscription": "ეს ჩატი იყენებს {label}-ს"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Verbruik niet beschikbaar",
   "codexMux.depleted": "Uitgeput",
   "codexMux.percentRemaining": "{percent}% resterend",
-  "codexMux.allSubscriptionsDepleted": "Alle verbonden abonnementen zijn uitgeput"
+  "codexMux.allSubscriptionsDepleted": "Alle verbonden abonnementen zijn uitgeput",
+  "codexMux.threadSubscription": "Deze chat gebruikt {label}"
 }

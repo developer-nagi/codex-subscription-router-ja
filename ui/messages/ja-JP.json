@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "使用状況を取得できません",
   "codexMux.depleted": "残量なし",
   "codexMux.percentRemaining": "残り {percent}%",
-  "codexMux.allSubscriptionsDepleted": "接続中のすべてのサブスクリプションの利用枠を使い切りました"
+  "codexMux.allSubscriptionsDepleted": "接続中のすべてのサブスクリプションの利用枠を使い切りました",
+  "codexMux.threadSubscription": "このチャットは{label}を使用しています"
 }

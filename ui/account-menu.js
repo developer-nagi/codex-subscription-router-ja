@@ -32,6 +32,11 @@ const CODEX_MUX_MESSAGES = {
       "{count, plural, one {# reset available} other {# resets available}}",
     description: "Number of banked usage resets for a subscription",
   },
+  threadSubscription: {
+    id: "codexMux.threadSubscription",
+    defaultMessage: "This chat is using {label}",
+    description: "Tells which subscription the open chat runs on",
+  },
   subscriptionLabel: {
     id: "codexMux.subscriptionLabel",
     defaultMessage: "Subscription {index}",
@@ -1432,6 +1437,110 @@ function CodexMuxPluginScope() {
   });
 }
 
+// Which subscription a chat is running on is decided by the multiplexer and is
+// otherwise invisible: the interface shows one identity no matter how many are
+// connected, and a chat handed to another subscription looks exactly the same. The
+// composer footer is where the chat's own settings already are, so the answer belongs
+// beside them.
+function CodexMuxThreadSubscription({ conversationId }) {
+  const intl = __CODEX_MUX_INTL__();
+  const [account, setAccount] = __CODEX_MUX_REACT__.useState(null);
+
+  __CODEX_MUX_REACT__.useEffect(() => {
+    if (!conversationId) {
+      setAccount(null);
+      return undefined;
+    }
+    let live = true;
+    const refresh = () => {
+      codexMuxRequest(
+        `/thread-account?threadId=${encodeURIComponent(conversationId)}`,
+      )
+        .then((body) => {
+          if (live) setAccount(body.account || null);
+        })
+        .catch(() => {
+          if (live) setAccount(null);
+        });
+    };
+    refresh();
+    // A chat's work moves the moment its subscription runs out, and the multiplexer says
+    // so. Listening means the label changes as the handover happens rather than up to a
+    // poll later; the timer stays as the fallback for a dropped stream.
+    const events = new EventSource(
+      `${CODEX_MUX_API}/events?token=${encodeURIComponent(CODEX_MUX_TOKEN)}`,
+    );
+    events.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (
+          payload.type === "account-updated" ||
+          (payload.data?.threadId === conversationId &&
+            (payload.type === "thread-failed-over" ||
+              payload.type === "thread-failover-failed"))
+        ) {
+          refresh();
+        }
+      } catch {}
+    };
+    const timer = setInterval(refresh, 15_000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      events.close();
+    };
+  }, [conversationId]);
+
+  if (!account) return null;
+  const label = codexMuxAccountLabel(intl, account, null);
+  const weekly = codexMuxWeeklyWindow(account.rateLimits);
+  const remaining = weekly == null ? null : Math.max(0, 100 - weekly.usedPercent);
+  return (0, __CODEX_MUX_JSX__.jsx)("span", {
+    className: "min-w-0 truncate text-xs text-secondary tabular-nums",
+    title: intl.formatMessage(CODEX_MUX_MESSAGES.threadSubscription, { label }),
+    children: remaining == null ? label : `${label} · ${Math.round(remaining)}%`,
+  });
+}
+
+// The app decides to offer credits from the state of ONE subscription: whichever
+// account answered for the rate limit it was looking at. With several connected, that
+// makes the offer appear while other subscriptions still have most of their allowance.
+//
+// The offer is worth keeping for the case it was written for - every subscription really
+// is out - so it is gated rather than removed. The answer has to be available the moment
+// the banner renders, so it comes from the pooled accounts the interface already keeps,
+// refreshed on a timer of its own because the profile menu only refreshes while open.
+//
+// Not knowing yet means answering yes: an offer shown when it need not be is a smaller
+// wrong than one withheld from someone who has actually run out.
+function codexMuxPoolHasCapacity() {
+  const accounts = globalThis.__codexMuxConnectedAccounts;
+  if (!Array.isArray(accounts) || accounts.length === 0) return false;
+  return accounts.some((account) => {
+    if (!account.connected || !account.enabled) return false;
+    const weekly = codexMuxWeeklyWindow(account.rateLimits);
+    return weekly == null || weekly.usedPercent < 100;
+  });
+}
+
+function codexMuxWatchPoolCapacity() {
+  if (globalThis.__codexMuxPoolWatcher) return;
+  const refresh = () => {
+    codexMuxRequest("/accounts")
+      .then((result) => {
+        const accounts = result.accounts || [];
+        codexMuxRememberAccountOrder(accounts);
+        globalThis.__codexMuxConnectedAccounts = accounts.filter(
+          (account) => account.connected && account.enabled,
+        );
+      })
+      .catch(() => {});
+  };
+  refresh();
+  globalThis.__codexMuxPoolWatcher = setInterval(refresh, 60_000);
+}
+codexMuxWatchPoolCapacity();
+
 // The thread summary is emitted into a separate lazy-loaded renderer chunk.
 // Export the same avatar component so both surfaces share image resolution,
 // error handling, and the initials fallback.
@@ -1446,3 +1555,6 @@ globalThis.CodexMuxProfileUsername = () =>
   (0, __CODEX_MUX_JSX__.jsx)(CodexMuxProfileUsername, {});
 globalThis.CodexMuxPluginScope = () =>
   (0, __CODEX_MUX_JSX__.jsx)(CodexMuxPluginScope, {});
+globalThis.CodexMuxShowUpsellBanner = () => !codexMuxPoolHasCapacity();
+globalThis.CodexMuxThreadSubscription = (conversationId) =>
+  (0, __CODEX_MUX_JSX__.jsx)(CodexMuxThreadSubscription, { conversationId });

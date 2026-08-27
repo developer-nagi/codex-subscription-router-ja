@@ -34,6 +34,13 @@ original instead.
   that subscription is depleted.
 - **Automatic failover.** A depleted thread continues through another account with
   capacity. When the whole pool is empty, one combined alert is shown.
+- **Continuing a running chat.** When a subscription runs out mid-turn, the turn moves to
+  one with room and the chat carries on, goal included. The chat itself stays where it
+  is; see [Continuing a chat when a subscription runs out](#continuing-a-chat-when-a-subscription-runs-out).
+- **Which subscription is answering.** The composer names the subscription the open chat
+  is running on, and its remaining allowance.
+- **Quiet upsell.** The offer to buy credits or invite a friend waits until every
+  connected subscription is out, rather than appearing whenever one of them is.
 - **Native account management.** The existing profile menu shows pooled usage, profile
   photos, plan names, masked email addresses, and device-code sign-in.
 - **Per-account resets.** The native rate-limit sheet shows and consumes reset credits
@@ -169,9 +176,40 @@ can be cleared from there.
 | New chat | Assigned by quota at risk, banked resets, and short-window pressure |
 | Follow-up | Sent to the thread's persisted account owner |
 | Owner depleted | Continued through another account with capacity |
+| Owner depleted mid-turn | The turn moves to an account with room; the chat stays put |
 | Every account depleted | One combined alert with the next known reset |
 | Account disabled | Excluded from routing and pooled usable quota |
 | Custom provider or non-OpenAI base URL | Sent through the account's configured Codex provider without using pooled ChatGPT quota |
+
+## Continuing a chat when a subscription runs out
+
+A new chat simply starts on a subscription that has room. A chat already running is
+harder, because a chat is more than its history.
+
+`turn/start` is answered as soon as the subscription accepts the turn, so a limit reached
+while the turn runs never appears in that response - it arrives afterwards, as an `error`
+notification. Setting a thread's goal runs a turn too, through a request of its own.
+Both are recognised, and the turn is replayed on a subscription with room.
+
+**The turn moves; the chat does not.** A chat's turns are rebuilt into whichever
+subscription's own store, from a history that is read as the chat is used, and on a long
+chat that rebuilding is nowhere near finished. A subscription just given the history
+therefore cannot show the chat yet, and a chat handed over opened empty. The history file
+is shared rather than copied, so whatever the running subscription appends is visible to
+the one that owns the chat: reading stays where it works, and only the work moves.
+
+The chat's goal is carried across before the handover resumes it, which is what keeps a
+running goal running. A goal stopped because its subscription ran out is carried across
+as running, since the reason it stopped does not apply where it is going.
+
+This is behind an opt-in while it is proven out:
+
+```powershell
+$env:CODEX_MUX_THREAD_HANDOVER = "1"
+```
+
+Without it a chat whose subscription is out reports the limit, exactly as the official
+app does, and nothing moves.
 
 ## Update and rebuild
 
@@ -225,15 +263,26 @@ The Go backend and the injected renderer have no runtime third-party dependencie
 
 The on-device procedure is in [SMOKE-TEST.md](docs/SMOKE-TEST.md).
 
+The multiplexer is silent by design, which makes a routing question hard to answer from a
+running installation. Set `CODEX_MUX_TRACE` to a file path and it records the method
+names crossing it, with a thread id, an error code and message, and a subscription id. It
+writes no prompt text, no results, and no credentials, and is off unless set.
+
+```powershell
+$env:CODEX_MUX_TRACE = "$env:TEMP\codex-mux-trace.log"
+```
+
 ## Known limitations
 
 - An upstream ChatGPT update can require re-deriving the renderer anchors. They depend on
   each build's minifier output and are not compatible across versions.
 - Some features from the macOS build are not ported, because the Windows build implements
-  those screens differently: selecting one account's statistics on the Profile page,
-  subscription switching on Settings → Plugins, and the "Subscription" row in the thread
-  summary. The combined profile display itself works. See
-  [Compatibility](docs/COMPATIBILITY.md).
+  those screens differently: selecting one account's statistics on the Profile page, and
+  subscription switching on Settings → Plugins. The combined profile display itself
+  works, and the composer names the subscription in place of the macOS build's
+  "Subscription" row in the thread summary. See [Compatibility](docs/COMPATIBILITY.md).
+- Continuing a running chat on another subscription is opt-in, and the chat stays with
+  the subscription that can display it while its turns run elsewhere.
 - The initial merged history fetch is limited to 500 threads per account.
 - Combined "skills explored" totals can count the same skill once per account, because
   the upstream profile response exposes counts rather than skill IDs.

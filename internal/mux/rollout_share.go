@@ -75,10 +75,11 @@ func relativeToHome(home, path string) (string, error) {
 
 // normalizeExtendedPath removes the Windows extended-length prefix.
 //
-// The app-server reports a chat's history as \\?\C:\Users\... That names the same file as
-// the plain form, but the two forms cannot be compared, so a history was refused as if it
-// lived outside its own subscription. Only the comparison uses the plain form: the
-// original path is what gets opened, so a path long enough to need the prefix still works.
+// The app-server reports a chat's history with the extended-length prefix in front of
+// the drive. That names the same file as the plain form, but the two cannot be compared,
+// so a history was refused as if it lived outside its own subscription. Only the
+// comparison uses the plain form: the original path is opened as given, so a path long
+// enough to need the prefix still works.
 func normalizeExtendedPath(value string) string {
 	const uncPrefix = `\\?\UNC\`
 	const devicePrefix = `\\?\`

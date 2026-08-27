@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "الاستخدام غير متاح",
   "codexMux.depleted": "نفد",
   "codexMux.percentRemaining": "متبقٍ {percent}%",
-  "codexMux.allSubscriptionsDepleted": "نفدت جميع الاشتراكات المتصلة"
+  "codexMux.allSubscriptionsDepleted": "نفدت جميع الاشتراكات المتصلة",
+  "codexMux.threadSubscription": "تستخدم هذه المحادثة {label}"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Využití není k dispozici",
   "codexMux.depleted": "Vyčerpáno",
   "codexMux.percentRemaining": "Zbývá {percent} %",
-  "codexMux.allSubscriptionsDepleted": "Všechna připojená předplatná jsou vyčerpána"
+  "codexMux.allSubscriptionsDepleted": "Všechna připojená předplatná jsou vyčerpána",
+  "codexMux.threadSubscription": "Tento chat používá {label}"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Không lấy được mức sử dụng",
   "codexMux.depleted": "Đã dùng hết",
   "codexMux.percentRemaining": "Còn lại {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Tất cả gói đăng ký đã kết nối đều đã dùng hết"
+  "codexMux.allSubscriptionsDepleted": "Tất cả gói đăng ký đã kết nối đều đã dùng hết",
+  "codexMux.threadSubscription": "Cuộc trò chuyện này đang dùng {label}"
 }

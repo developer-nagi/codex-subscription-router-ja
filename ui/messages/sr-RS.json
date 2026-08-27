@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Потрошња није доступна",
   "codexMux.depleted": "Исцрпљено",
   "codexMux.percentRemaining": "Преостало {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Све повезане претплате су исцрпљене"
+  "codexMux.allSubscriptionsDepleted": "Све повезане претплате су исцрпљене",
+  "codexMux.threadSubscription": "Овај разговор користи {label}"
 }

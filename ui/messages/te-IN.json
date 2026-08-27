@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "వినియోగం అందుబాటులో లేదు",
   "codexMux.depleted": "అయిపోయింది",
   "codexMux.percentRemaining": "{percent}% మిగిలింది",
-  "codexMux.allSubscriptionsDepleted": "కనెక్ట్ చేసిన అన్ని సభ్యత్వాలు అయిపోయాయి"
+  "codexMux.allSubscriptionsDepleted": "కనెక్ట్ చేసిన అన్ని సభ్యత్వాలు అయిపోయాయి",
+  "codexMux.threadSubscription": "ఈ చాట్ {label} ఉపయోగిస్తోంది"
 }

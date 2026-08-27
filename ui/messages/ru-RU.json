@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Использование недоступно",
   "codexMux.depleted": "Исчерпано",
   "codexMux.percentRemaining": "Осталось {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Все подключённые подписки исчерпаны"
+  "codexMux.allSubscriptionsDepleted": "Все подключённые подписки исчерпаны",
+  "codexMux.threadSubscription": "Этот чат использует {label}"
 }

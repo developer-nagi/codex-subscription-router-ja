@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Penggunaan tidak tersedia",
   "codexMux.depleted": "Habis",
   "codexMux.percentRemaining": "Baki {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Semua langganan yang disambungkan telah habis"
+  "codexMux.allSubscriptionsDepleted": "Semua langganan yang disambungkan telah habis",
+  "codexMux.threadSubscription": "Sembang ini menggunakan {label}"
 }

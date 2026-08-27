@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Matumizi hayapatikani",
   "codexMux.depleted": "Yameisha",
   "codexMux.percentRemaining": "{percent}% yamesalia",
-  "codexMux.allSubscriptionsDepleted": "Usajili wote ulioungwa umeisha"
+  "codexMux.allSubscriptionsDepleted": "Usajili wote ulioungwa umeisha",
+  "codexMux.threadSubscription": "Gumzo hili linatumia {label}"
 }

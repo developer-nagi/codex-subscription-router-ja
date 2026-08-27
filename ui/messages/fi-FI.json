@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Käyttötiedot eivät ole saatavilla",
   "codexMux.depleted": "Loppu",
   "codexMux.percentRemaining": "{percent} % jäljellä",
-  "codexMux.allSubscriptionsDepleted": "Kaikkien yhdistettyjen tilausten käyttö on loppu"
+  "codexMux.allSubscriptionsDepleted": "Kaikkien yhdistettyjen tilausten käyttö on loppu",
+  "codexMux.threadSubscription": "Tämä keskustelu käyttää tilausta {label}"
 }

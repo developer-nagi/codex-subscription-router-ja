@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "વપરાશ ઉપલબ્ધ નથી",
   "codexMux.depleted": "ખતમ",
   "codexMux.percentRemaining": "{percent}% બાકી",
-  "codexMux.allSubscriptionsDepleted": "બધાં કનેક્ટ કરેલાં સબ્સ્ક્રિપ્શન ખતમ થઈ ગયાં છે"
+  "codexMux.allSubscriptionsDepleted": "બધાં કનેક્ટ કરેલાં સબ્સ્ક્રિપ્શન ખતમ થઈ ગયાં છે",
+  "codexMux.threadSubscription": "આ ચેટ {label} વાપરે છે"
 }

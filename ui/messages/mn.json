@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Хэрэглээ боломжгүй",
   "codexMux.depleted": "Дууссан",
   "codexMux.percentRemaining": "{percent}% үлдсэн",
-  "codexMux.allSubscriptionsDepleted": "Холбогдсон бүх захиалга дууссан"
+  "codexMux.allSubscriptionsDepleted": "Холбогдсон бүх захиалга дууссан",
+  "codexMux.threadSubscription": "Энэ чат {label}-г ашиглаж байна"
 }

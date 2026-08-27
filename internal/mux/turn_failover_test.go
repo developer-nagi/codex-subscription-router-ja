@@ -77,7 +77,7 @@ func TestDecodeTurnCompletedReadsTopLevelThreadID(t *testing.T) {
 func newFailoverTestMultiplexer() *Multiplexer {
 	return &Multiplexer{
 		inFlightTurns:       make(map[string]inFlightTurn),
-		withheldCompletions: make(map[string]struct{}),
+		withheldCompletions: make(map[string][]byte),
 	}
 }
 
@@ -128,17 +128,23 @@ func TestForgetInFlightTurnOnlyClearsItsOwnSubscription(t *testing.T) {
 	}
 }
 
-func TestWithheldTurnCompletionIsConsumedOnce(t *testing.T) {
+func TestAWithheldCompletionIsKeptSoItCanBeReleased(t *testing.T) {
 	multiplexer := newFailoverTestMultiplexer()
 	multiplexer.withholdTurnCompleted("t1", "primary")
 
-	if multiplexer.turnCompletedIsWithheld("t1", "secondary") {
+	if multiplexer.keepWithheldTurnCompleted("t1", "secondary", []byte("{}")) {
 		t.Fatal("the completion of the subscription the chat moved to must reach the chat")
 	}
-	if !multiplexer.turnCompletedIsWithheld("t1", "primary") {
-		t.Fatal("the abandoned turn's completion must be withheld")
+	if !multiplexer.keepWithheldTurnCompleted("t1", "primary", []byte(`{"turn":1}`)) {
+		t.Fatal("the abandoned turn's completion must be held back")
 	}
-	if multiplexer.turnCompletedIsWithheld("t1", "primary") {
+	// If the chat does not move after all, the turn really did end, and the chat must be
+	// told: otherwise it waits on a turn nobody will finish.
+	raw, held := multiplexer.takeWithheldTurnCompleted("t1", "primary")
+	if !held || string(raw) != `{"turn":1}` {
+		t.Fatalf("held=%v raw=%s, want the completion back verbatim", held, raw)
+	}
+	if _, held := multiplexer.takeWithheldTurnCompleted("t1", "primary"); held {
 		t.Fatal("only one completion belongs to the abandoned turn")
 	}
 }

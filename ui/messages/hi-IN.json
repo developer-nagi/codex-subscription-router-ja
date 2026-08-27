@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "उपयोग उपलब्ध नहीं",
   "codexMux.depleted": "समाप्त",
   "codexMux.percentRemaining": "{percent}% शेष",
-  "codexMux.allSubscriptionsDepleted": "सभी कनेक्ट की गई सदस्यताएँ समाप्त हो चुकी हैं"
+  "codexMux.allSubscriptionsDepleted": "सभी कनेक्ट की गई सदस्यताएँ समाप्त हो चुकी हैं",
+  "codexMux.threadSubscription": "यह चैट {label} का उपयोग कर रही है"
 }

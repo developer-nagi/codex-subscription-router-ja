@@ -450,6 +450,34 @@ def patch_renderer(extracted: Path, token: str) -> None:
             "a native profile menu open-state hook",
         )
 
+    # A chat is pinned to one subscription and can be handed to another, and the
+    # interface shows the same identity either way. Name the subscription beside the
+    # chat's own controls. The permissions control is chosen as the neighbour because
+    # its memoisation already tracks the conversation id, so the label cannot be left
+    # showing a previous chat's subscription.
+    permissions_control = "(0,U4.jsx)(VWc,{conversationId:K,hostId:y,cwdOverride:b})"
+    bundle = replace_once(
+        bundle,
+        permissions_control,
+        "(0,U4.jsxs)(U4.Fragment,{children:["
+        f"{permissions_control},"
+        "globalThis.CodexMuxThreadSubscription?.(K)??null]})",
+        "the composer footer's subscription label",
+    )
+
+    # Offering credits is right when the pool is empty and wrong when one subscription
+    # is. The decision sits in the banner's router rather than the banner itself, so the
+    # gate goes there: the component never runs, and its hooks are not disturbed. Without
+    # the injected global the added test is `?? !0`, which is what the app did before.
+    upsell_anchor = "if(w===`blocking-limit`&&c!=null){let e;"
+    bundle = replace_once(
+        bundle,
+        upsell_anchor,
+        "if(w===`blocking-limit`&&c!=null"
+        "&&(globalThis.CodexMuxShowUpsellBanner?.()??!0)){let e;",
+        "the credits offer shown when a subscription is out",
+    )
+
     for message_id, default_message in DEPLETION_ALERTS:
         bundle = replace_once(
             bundle,

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Օգտագործումը հասանելի չէ",
   "codexMux.depleted": "Սպառված է",
   "codexMux.percentRemaining": "Մնացել է {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Բոլոր միացված բաժանորդագրությունները սպառված են"
+  "codexMux.allSubscriptionsDepleted": "Բոլոր միացված բաժանորդագրությունները սպառված են",
+  "codexMux.threadSubscription": "Այս զրույցն օգտագործում է {label}"
 }

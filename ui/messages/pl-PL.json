@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Wykorzystanie niedostępne",
   "codexMux.depleted": "Wyczerpane",
   "codexMux.percentRemaining": "Pozostało {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Wszystkie połączone subskrypcje są wyczerpane"
+  "codexMux.allSubscriptionsDepleted": "Wszystkie połączone subskrypcje są wyczerpane",
+  "codexMux.threadSubscription": "Ten czat korzysta z {label}"
 }

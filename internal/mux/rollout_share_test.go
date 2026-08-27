@@ -129,26 +129,26 @@ func TestRelativeToHomeAcceptsTheFormsTheAppServerReports(t *testing.T) {
 	}{
 		{
 			name:     "extended-length path",
-			home:     `C:\Users\info\.codex`,
-			path:     `\\?\C:\Users\info\.codex\sessions\2026\rollout.jsonl`,
+			home:     `C:\codex-home`,
+			path:     `\\?\C:\codex-home\sessions\2026\rollout.jsonl`,
 			expected: filepath.Join("sessions", "2026", "rollout.jsonl"),
 		},
 		{
 			name:     "extended-length home",
-			home:     `\\?\C:\Users\info\.codex`,
-			path:     `C:\Users\info\.codex\sessions\rollout.jsonl`,
+			home:     `\\?\C:\codex-home`,
+			path:     `C:\codex-home\sessions\rollout.jsonl`,
 			expected: filepath.Join("sessions", "rollout.jsonl"),
 		},
 		{
 			name:     "the same directory in another case",
-			home:     `C:\Users\info\.codex`,
-			path:     `c:\users\info\.codex\sessions\rollout.jsonl`,
+			home:     `C:\codex-home`,
+			path:     `c:\CODEX-home\sessions\rollout.jsonl`,
 			expected: filepath.Join("sessions", "rollout.jsonl"),
 		},
 		{
 			name:     "plain path",
-			home:     `C:\Users\info\.codex`,
-			path:     `C:\Users\info\.codex\sessions\rollout.jsonl`,
+			home:     `C:\codex-home`,
+			path:     `C:\codex-home\sessions\rollout.jsonl`,
 			expected: filepath.Join("sessions", "rollout.jsonl"),
 		},
 	}
@@ -167,10 +167,10 @@ func TestRelativeToHomeAcceptsTheFormsTheAppServerReports(t *testing.T) {
 
 func TestNormalizeExtendedPathLeavesOrdinaryPathsAlone(t *testing.T) {
 	cases := map[string]string{
-		`\\?\C:\Users\info\file.jsonl`:    `C:\Users\info\file.jsonl`,
+		`\\?\C:\codex-home\file.jsonl`:    `C:\codex-home\file.jsonl`,
 		`\\?\UNC\server\share\file.jsonl`: `\\server\share\file.jsonl`,
-		`C:\Users\info\file.jsonl`:        `C:\Users\info\file.jsonl`,
-		`/home/info/file.jsonl`:           `/home/info/file.jsonl`,
+		`C:\codex-home\file.jsonl`:        `C:\codex-home\file.jsonl`,
+		`/home/codex/file.jsonl`:          `/home/codex/file.jsonl`,
 	}
 	for input, expected := range cases {
 		if got := normalizeExtendedPath(input); got != expected {

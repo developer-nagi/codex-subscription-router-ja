@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Naudojimas nepasiekiamas",
   "codexMux.depleted": "Išnaudota",
   "codexMux.percentRemaining": "Liko {percent} %",
-  "codexMux.allSubscriptionsDepleted": "Visos prijungtos prenumeratos išnaudotos"
+  "codexMux.allSubscriptionsDepleted": "Visos prijungtos prenumeratos išnaudotos",
+  "codexMux.threadSubscription": "Šis pokalbis naudoja {label}"
 }

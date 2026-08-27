@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Utilisation indisponible",
   "codexMux.depleted": "Épuisé",
   "codexMux.percentRemaining": "{percent} % restants",
-  "codexMux.allSubscriptionsDepleted": "Tous les abonnements connectés sont épuisés"
+  "codexMux.allSubscriptionsDepleted": "Tous les abonnements connectés sont épuisés",
+  "codexMux.threadSubscription": "Cette conversation utilise {label}"
 }

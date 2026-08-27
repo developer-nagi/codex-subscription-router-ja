@@ -21,12 +21,10 @@ import (
 
 const requestTimeout = 30 * time.Second
 
-// The capacity check in front of a turn is an optimisation: it keeps work away from a
-// subscription already known to be out. It must never hold a turn up, so it gets a
-// short budget of its own and falls through to the owner when the subscription does
-// not answer in time. A limit reached anyway is caught by the error notification the
-// turn produces, which is what moves the chat.
-const capacityCheckTimeout = 3 * time.Second
+// Moving a chat reads its history twice over - once to count its turns where it is,
+// once to rebuild them where it is going. It runs in the background and holds nothing
+// up, so it is given room to finish rather than a request-sized budget.
+const handoverTimeout = 15 * time.Minute
 
 type Options struct {
 	RealExecutable string
@@ -76,7 +74,8 @@ type Multiplexer struct {
 	externalRoutes      map[string]externalRoute
 	turnsMu             sync.Mutex
 	inFlightTurns       map[string]inFlightTurn
-	withheldCompletions map[string]struct{}
+	withheldCompletions map[string][]byte
+	turnHosts           map[string]string
 	serverMu            sync.Mutex
 	serverRoutes        map[string]serverRequestRoute
 	serverSequence      atomic.Uint64
@@ -115,7 +114,8 @@ func New(options Options) (*Multiplexer, error) {
 		inbound:              make(chan backend.Inbound, 1024),
 		externalRoutes:       make(map[string]externalRoute),
 		inFlightTurns:        make(map[string]inFlightTurn),
-		withheldCompletions:  make(map[string]struct{}),
+		withheldCompletions:  make(map[string][]byte),
+		turnHosts:            make(map[string]string),
 		serverRoutes:         make(map[string]serverRequestRoute),
 		events:               make(map[chan Event]struct{}),
 		profileClient:        &http.Client{Timeout: 10 * time.Second},
@@ -285,9 +285,16 @@ func (m *Multiplexer) routeExistingRequest(message protocol.Message) {
 		m.write(protocol.Failure(message.ID, -32022, "no controller account is configured"))
 		return
 	}
-	if startsTurn(message.Method) && threadID != "" && threadHandoverEnabled() {
-		go m.routeTurnStart(message, threadID, accountID)
-		return
+	// Reading a chat stays with the subscription that can show it. A turn goes to
+	// whichever subscription took the work over when this one ran out.
+	if startsTurn(message.Method) && threadID != "" {
+		if host, ok := m.turnHost(threadID); ok && host != accountID {
+			trace.note(host, "turn-host", "thread="+threadID)
+			if err := m.forward(host, message); err == nil {
+				return
+			}
+			m.forgetTurnHost(threadID)
+		}
 	}
 	if err := m.forward(accountID, message); err != nil {
 		m.write(protocol.Failure(message.ID, -32023, err.Error()))
@@ -341,31 +348,6 @@ func (m *Multiplexer) routeAggregatedRateLimits(message protocol.Message) {
 		return
 	}
 	m.write(protocol.Success(message.ID, result))
-}
-
-func (m *Multiplexer) routeTurnStart(message protocol.Message, threadID, ownerID string) {
-	if owner, ok := m.store.Account(ownerID); ok && accountBypassesChatGPTQuota(message.Params, owner) {
-		if err := m.forward(ownerID, message); err != nil {
-			m.write(protocol.Failure(message.ID, -32023, err.Error()))
-		}
-		return
-	}
-	checkCtx, cancelCheck := context.WithTimeout(context.Background(), capacityCheckTimeout)
-	snapshot, err := m.accountSnapshotWithProfile(checkCtx, ownerID, false)
-	cancelCheck()
-	trace.note(ownerID, "capacity-check", fmt.Sprintf(
-		"method=%s thread=%s err=%v capacity=%t", message.Method, threadID, err, accountHasCapacity(snapshot),
-	))
-	if err != nil || accountHasCapacity(snapshot) {
-		if err := m.forward(ownerID, message); err != nil {
-			m.write(protocol.Failure(message.ID, -32023, err.Error()))
-		}
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*requestTimeout)
-	defer cancel()
-	excluded := map[string]struct{}{ownerID: {}}
-	m.failoverTurn(ctx, message, threadID, ownerID, excluded)
 }
 
 func (m *Multiplexer) failoverTurn(
@@ -451,6 +433,23 @@ func (m *Multiplexer) resumeThreadOnAccount(ctx context.Context, threadID, sourc
 	if err != nil {
 		return err
 	}
+
+	// The goal has to be written before the resume: beforehand it is a local write and
+	// the resume carries it over, afterwards it starts a turn of its own. A goal that
+	// cannot be carried is not worth abandoning the chat's history for, so this only
+	// warns.
+	if goal, goalErr := m.readThreadGoal(ctx, sourceAccountID, threadID); goalErr != nil {
+		trace.note(sourceAccountID, "goal-read-failed", fmt.Sprintf("thread=%s err=%v", threadID, goalErr))
+	} else if goal != nil {
+		if status, err := m.writeThreadGoal(ctx, targetAccountID, threadID, goal); err != nil {
+			trace.note(targetAccountID, "goal-write-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
+		} else {
+			trace.note(targetAccountID, "goal-carried", fmt.Sprintf(
+				"thread=%s was=%s now=%s", threadID, goal.Status, status,
+			))
+		}
+	}
+
 	resumeParams, _ := json.Marshal(map[string]any{
 		"threadId":      threadID,
 		"history":       nil,
@@ -459,11 +458,19 @@ func (m *Multiplexer) resumeThreadOnAccount(ctx context.Context, threadID, sourc
 		"model":         nil,
 		"modelProvider": readResult.Thread.ModelProvider,
 	})
-	if _, err := target.Request(ctx, "thread/resume", resumeParams); err != nil {
+	// Rebuilding a long chat's turns re-reads its whole history, so the resume gets a
+	// deadline sized from that history rather than the generic request budget.
+	resumeCtx, cancelResume := context.WithTimeout(context.Background(), resumeDeadline(sharedPath))
+	defer cancelResume()
+	started := time.Now()
+	if _, err := target.Request(resumeCtx, "thread/resume", resumeParams); err != nil {
 		trace.note(targetAccountID, "thread-resume-failed", fmt.Sprintf("thread=%s err=%v", threadID, err))
 		return fmt.Errorf("resume existing chat: %w", err)
 	}
-	trace.note(targetAccountID, "thread-resume-ok", "thread="+threadID)
+	trace.note(targetAccountID, "thread-resume-ok", fmt.Sprintf(
+		"thread=%s took=%s", threadID, time.Since(started).Round(time.Millisecond),
+	))
+
 	return nil
 }
 
@@ -537,7 +544,7 @@ func (m *Multiplexer) handleInbound(inbound backend.Inbound) {
 	}
 	if message.Method == "turn/completed" {
 		if notice, ok := decodeTurnCompleted(message.Params); ok {
-			if m.turnCompletedIsWithheld(notice.ThreadID, inbound.AccountID) {
+			if m.keepWithheldTurnCompleted(notice.ThreadID, inbound.AccountID, inbound.Raw) {
 				go m.publishAccountRefresh(inbound.AccountID)
 				return
 			}
@@ -592,7 +599,7 @@ func (m *Multiplexer) retryTurnAfterUsageLimit(route externalRoute, exhaustedAcc
 		excluded = make(map[string]struct{})
 	}
 	excluded[exhaustedAccountID] = struct{}{}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*requestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), handoverTimeout)
 	defer cancel()
 	m.failoverTurn(ctx, route.message, threadID, exhaustedAccountID, excluded)
 }
@@ -785,14 +792,6 @@ func threadIDFromResult(result json.RawMessage) string {
 
 func threadIDFromNotification(params json.RawMessage) string {
 	return threadIDFromResult(params)
-}
-
-func accountHasCapacity(snapshot AccountSnapshot) bool {
-	if !snapshot.Enabled || !snapshot.Connected || snapshot.AuthType != "chatgpt" {
-		return false
-	}
-	weekly, _ := longestAndShortestWindow(snapshot.RateLimits)
-	return weekly == nil || weekly.UsedPercent < 100
 }
 
 func isUsageLimitResponse(message protocol.Message) bool {

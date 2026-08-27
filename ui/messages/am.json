@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "አጠቃቀም አይገኝም",
   "codexMux.depleted": "አልቋል",
   "codexMux.percentRemaining": "{percent}% ቀርቷል",
-  "codexMux.allSubscriptionsDepleted": "ሁሉም የተገናኙ ደንበኝነቶች አልቀዋል"
+  "codexMux.allSubscriptionsDepleted": "ሁሉም የተገናኙ ደንበኝነቶች አልቀዋል",
+  "codexMux.threadSubscription": "ይህ ውይይት {label}ን እየተጠቀመ ነው"
 }

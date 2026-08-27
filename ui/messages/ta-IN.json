@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "பயன்பாடு கிடைக்கவில்லை",
   "codexMux.depleted": "தீர்ந்துவிட்டது",
   "codexMux.percentRemaining": "{percent}% மீதம்",
-  "codexMux.allSubscriptionsDepleted": "இணைக்கப்பட்ட அனைத்து சந்தாக்களும் தீர்ந்துவிட்டன"
+  "codexMux.allSubscriptionsDepleted": "இணைக்கப்பட்ட அனைத்து சந்தாக்களும் தீர்ந்துவிட்டன",
+  "codexMux.threadSubscription": "இந்த அரட்டை {label} ஐப் பயன்படுத்துகிறது"
 }

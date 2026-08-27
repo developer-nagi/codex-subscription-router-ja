@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Ús no disponible",
   "codexMux.depleted": "Exhaurit",
   "codexMux.percentRemaining": "{percent}% restant",
-  "codexMux.allSubscriptionsDepleted": "Totes les subscripcions connectades estan exhaurides"
+  "codexMux.allSubscriptionsDepleted": "Totes les subscripcions connectades estan exhaurides",
+  "codexMux.threadSubscription": "Aquest xat utilitza {label}"
 }

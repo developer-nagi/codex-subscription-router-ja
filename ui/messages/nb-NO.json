@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Bruk utilgjengelig",
   "codexMux.depleted": "Oppbrukt",
   "codexMux.percentRemaining": "{percent} % igjen",
-  "codexMux.allSubscriptionsDepleted": "Alle tilkoblede abonnementer er oppbrukt"
+  "codexMux.allSubscriptionsDepleted": "Alle tilkoblede abonnementer er oppbrukt",
+  "codexMux.threadSubscription": "Denne chatten bruker {label}"
 }

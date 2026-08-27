@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Utilização indisponível",
   "codexMux.depleted": "Esgotado",
   "codexMux.percentRemaining": "{percent}% restante",
-  "codexMux.allSubscriptionsDepleted": "Todas as subscrições ligadas estão esgotadas"
+  "codexMux.allSubscriptionsDepleted": "Todas as subscrições ligadas estão esgotadas",
+  "codexMux.threadSubscription": "Este chat utiliza {label}"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Hindi available ang paggamit",
   "codexMux.depleted": "Naubos",
   "codexMux.percentRemaining": "{percent}% ang natitira",
-  "codexMux.allSubscriptionsDepleted": "Naubos na ang lahat ng nakakonektang subscription"
+  "codexMux.allSubscriptionsDepleted": "Naubos na ang lahat ng nakakonektang subscription",
+  "codexMux.threadSubscription": "Gumagamit ang chat na ito ng {label}"
 }

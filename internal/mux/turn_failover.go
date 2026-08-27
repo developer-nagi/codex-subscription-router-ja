@@ -153,22 +153,41 @@ func (m *Multiplexer) forgetInFlightTurn(threadID, accountID string) {
 	}
 }
 
-// The subscription that ran out still completes its turn as failed. That completion
-// describes a turn the chat no longer uses, so it is withheld once.
+// The subscription that ran out still completes its turn as failed. While the chat is
+// being moved that completion describes a turn the chat no longer uses, so it is held
+// back - but it is kept, not discarded: if the chat does not move after all, the turn
+// really did end, and a chat left waiting on a turn nobody will finish sits thinking
+// forever.
 func (m *Multiplexer) withholdTurnCompleted(threadID, accountID string) {
 	m.turnsMu.Lock()
 	defer m.turnsMu.Unlock()
-	m.withheldCompletions[threadID+"\x00"+accountID] = struct{}{}
+	m.withheldCompletions[threadID+"\x00"+accountID] = nil
 }
 
-func (m *Multiplexer) turnCompletedIsWithheld(threadID, accountID string) bool {
+// takeWithheldTurnCompleted reports whether the completion is being held back, and hands
+// back whatever has arrived so far so the caller can release it.
+func (m *Multiplexer) takeWithheldTurnCompleted(threadID, accountID string) ([]byte, bool) {
+	m.turnsMu.Lock()
+	defer m.turnsMu.Unlock()
+	key := threadID + "\x00" + accountID
+	raw, ok := m.withheldCompletions[key]
+	if !ok {
+		return nil, false
+	}
+	delete(m.withheldCompletions, key)
+	return raw, true
+}
+
+// keepWithheldTurnCompleted stores the completion that arrived while the chat was being
+// moved, so it can be released if the move is refused.
+func (m *Multiplexer) keepWithheldTurnCompleted(threadID, accountID string, raw []byte) bool {
 	m.turnsMu.Lock()
 	defer m.turnsMu.Unlock()
 	key := threadID + "\x00" + accountID
 	if _, ok := m.withheldCompletions[key]; !ok {
 		return false
 	}
-	delete(m.withheldCompletions, key)
+	m.withheldCompletions[key] = append([]byte(nil), raw...)
 	return true
 }
 
@@ -201,7 +220,7 @@ func (m *Multiplexer) beginTurnFailover(inbound backend.Inbound, notice errorNot
 func (m *Multiplexer) continueTurnOnAnotherAccount(
 	threadID, sourceAccountID string, turn inFlightTurn, raw []byte,
 ) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*requestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), handoverTimeout)
 	defer cancel()
 
 	excluded := cloneAccountSet(turn.excluded)
@@ -213,7 +232,12 @@ func (m *Multiplexer) continueTurnOnAnotherAccount(
 	// Any failure here leaves the chat where it is, so the subscription's own error is
 	// released instead of being swallowed.
 	surrender := func(reason error) {
-		m.turnCompletedIsWithheld(threadID, sourceAccountID)
+		// The turn really did end, so its completion is released along with the error.
+		// Without it the chat waits on a turn nobody will finish.
+		if completed, held := m.takeWithheldTurnCompleted(threadID, sourceAccountID); held &&
+			len(completed) > 0 {
+			defer m.writeRaw(completed)
+		}
 		if reason != nil {
 			m.publish(Event{
 				Type:      "thread-failover-failed",
@@ -234,10 +258,16 @@ func (m *Multiplexer) continueTurnOnAnotherAccount(
 		surrender(err)
 		return
 	}
-	if err := m.store.SetThreadOwner(threadID, fallback.ID); err != nil {
-		surrender(err)
-		return
-	}
+	// The chat is NOT handed over - only the turn is.
+	//
+	// A chat's turns are rebuilt into whichever subscription's own store, from a history
+	// that is read as the chat is used. On a long chat that rebuilding is nowhere near
+	// done, so a subscription that has just been given the history still cannot show it.
+	// Moving the chat there left it opening empty. The history file itself is shared, so
+	// what the running subscription appends is visible to the one that owns the chat, and
+	// there is nothing to gain by moving ownership as well: reading stays where it works,
+	// and only the work moves.
+	m.rememberTurnHost(threadID, fallback.ID)
 	child, ok := m.child(fallback.ID)
 	if !ok {
 		surrender(fmt.Errorf("subscription %s is unavailable", fallback.ID))

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Kasutus pole saadaval",
   "codexMux.depleted": "Ammendatud",
   "codexMux.percentRemaining": "{percent}% järel",
-  "codexMux.allSubscriptionsDepleted": "Kõik ühendatud tellimused on ammendatud"
+  "codexMux.allSubscriptionsDepleted": "Kõik ühendatud tellimused on ammendatud",
+  "codexMux.threadSubscription": "See vestlus kasutab tellimust {label}"
 }

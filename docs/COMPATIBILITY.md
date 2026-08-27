@@ -4,6 +4,21 @@ The patcher is deliberately tied to a known ChatGPT desktop layout. It verifies 
 renderer and main-process anchor it rewrites and stops rather than applying a partial
 patch.
 
+## Release 0.2.0 (Windows)
+
+| Component | Tested value |
+| --- | --- |
+| OS | Windows 11 x64 |
+| Official package | MSIX `OpenAI.Codex` |
+| Official version | `26.818.8289.0` |
+| `app.asar` SHA-256 | `e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313` |
+| Electron fuse `EnableEmbeddedAsarIntegrityValidation` | Disabled, so repacking needs no hash update |
+| Spawned app-server | `resources\codex.exe -c features.code_mode_host=true app-server --analytics-default-enabled` |
+
+Same official build as 0.1.0. The anchors this release adds - the composer footer's
+permissions control and the upsell banner's router - were each confirmed to occur exactly
+once in that build.
+
 ## Release 0.1.0 (Windows)
 
 | Component | Tested value |

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "ไม่สามารถดูการใช้งานได้",
   "codexMux.depleted": "ใช้หมดแล้ว",
   "codexMux.percentRemaining": "เหลือ {percent}%",
-  "codexMux.allSubscriptionsDepleted": "การสมัครสมาชิกที่เชื่อมต่อทั้งหมดถูกใช้หมดแล้ว"
+  "codexMux.allSubscriptionsDepleted": "การสมัครสมาชิกที่เชื่อมต่อทั้งหมดถูกใช้หมดแล้ว",
+  "codexMux.threadSubscription": "แชทนี้ใช้ {label}"
 }

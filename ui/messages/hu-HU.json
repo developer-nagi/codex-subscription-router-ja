@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "A felhasználás nem érhető el",
   "codexMux.depleted": "Elfogyott",
   "codexMux.percentRemaining": "{percent}% maradt",
-  "codexMux.allSubscriptionsDepleted": "Az összes csatlakoztatott előfizetés elfogyott"
+  "codexMux.allSubscriptionsDepleted": "Az összes csatlakoztatott előfizetés elfogyott",
+  "codexMux.threadSubscription": "Ez a csevegés a következőt használja: {label}"
 }

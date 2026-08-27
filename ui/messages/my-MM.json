@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "အသုံးပြုမှု မရရှိနိုင်ပါ",
   "codexMux.depleted": "ကုန်သွားပြီ",
   "codexMux.percentRemaining": "{percent}% ကျန်သည်",
-  "codexMux.allSubscriptionsDepleted": "ချိတ်ဆက်ထားသော စာရင်းသွင်းမှုအားလုံး ကုန်သွားပြီ"
+  "codexMux.allSubscriptionsDepleted": "ချိတ်ဆက်ထားသော စာရင်းသွင်းမှုအားလုံး ကုန်သွားပြီ",
+  "codexMux.threadSubscription": "ဤချက်သည် {label} ကို အသုံးပြုနေသည်"
 }

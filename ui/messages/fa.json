@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "مصرف در دسترس نیست",
   "codexMux.depleted": "تمام شد",
   "codexMux.percentRemaining": "{percent}% باقی‌مانده",
-  "codexMux.allSubscriptionsDepleted": "همهٔ اشتراک‌های متصل تمام شده‌اند"
+  "codexMux.allSubscriptionsDepleted": "همهٔ اشتراک‌های متصل تمام شده‌اند",
+  "codexMux.threadSubscription": "این گفتگو از {label} استفاده می‌کند"
 }

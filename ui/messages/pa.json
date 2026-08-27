@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "ਵਰਤੋਂ ਉਪਲਬਧ ਨਹੀਂ",
   "codexMux.depleted": "ਖ਼ਤਮ",
   "codexMux.percentRemaining": "{percent}% ਬਾਕੀ",
-  "codexMux.allSubscriptionsDepleted": "ਸਾਰੀਆਂ ਜੁੜੀਆਂ ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ ਖ਼ਤਮ ਹੋ ਗਈਆਂ ਹਨ"
+  "codexMux.allSubscriptionsDepleted": "ਸਾਰੀਆਂ ਜੁੜੀਆਂ ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ ਖ਼ਤਮ ਹੋ ਗਈਆਂ ਹਨ",
+  "codexMux.threadSubscription": "ਇਹ ਚੈਟ {label} ਵਰਤ ਰਹੀ ਹੈ"
 }

@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Utilizarea nu este disponibilă",
   "codexMux.depleted": "Epuizat",
   "codexMux.percentRemaining": "{percent}% rămas",
-  "codexMux.allSubscriptionsDepleted": "Toate abonamentele conectate sunt epuizate"
+  "codexMux.allSubscriptionsDepleted": "Toate abonamentele conectate sunt epuizate",
+  "codexMux.threadSubscription": "Acest chat folosește {label}"
 }

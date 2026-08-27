@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Потреблението не е налично",
   "codexMux.depleted": "Изчерпано",
   "codexMux.percentRemaining": "Остават {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Всички свързани абонаменти са изчерпани"
+  "codexMux.allSubscriptionsDepleted": "Всички свързани абонаменти са изчерпани",
+  "codexMux.threadSubscription": "Този чат използва {label}"
 }

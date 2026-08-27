@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "استعمال دستیاب نہیں",
   "codexMux.depleted": "ختم",
   "codexMux.percentRemaining": "{percent}% باقی",
-  "codexMux.allSubscriptionsDepleted": "تمام منسلک سبسکرپشنز ختم ہو چکی ہیں"
+  "codexMux.allSubscriptionsDepleted": "تمام منسلک سبسکرپشنز ختم ہو چکی ہیں",
+  "codexMux.threadSubscription": "یہ چیٹ {label} استعمال کر رہی ہے"
 }

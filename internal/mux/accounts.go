@@ -189,8 +189,18 @@ func renameWithRetry(source, destination string) error {
 	return err
 }
 
+// ThreadAccount reports the subscription a chat is running on.
+//
+// That is not always the one the chat belongs to. When a chat's own subscription runs
+// out, its work moves to one with room while the chat itself stays put, because only the
+// subscription that has been reading the chat's history can show it. The answer here is
+// the one that matters to someone looking at the chat: whichever subscription its next
+// turn will be charged to.
 func (m *Multiplexer) ThreadAccount(ctx context.Context, threadID string) (AccountSnapshot, error) {
-	accountID, ok := m.store.ThreadOwner(threadID)
+	accountID, ok := m.turnHost(threadID)
+	if !ok {
+		accountID, ok = m.store.ThreadOwner(threadID)
+	}
 	if !ok {
 		return AccountSnapshot{}, fmt.Errorf("thread %q has no subscription assignment", threadID)
 	}

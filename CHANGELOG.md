@@ -5,6 +5,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-27
+
 ### Changed
 
 - Replaced the target platform: macOS becomes **Windows 11 x64**. The official app is
@@ -47,6 +49,12 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
   as the fallback. The app-server reports a history as an extended-length Windows path
   (`\\?\C:\...`), which is handled when the path is compared with its subscription's
   home.
+- The composer names the subscription the open chat is running on, beside the chat's own
+  controls. It names the subscription its next turn will be charged to, which is not
+  always the one the chat belongs to.
+- The offer to buy credits or invite a friend now waits until every connected
+  subscription is out. The app decides to show it from the state of one subscription, so
+  with several connected it appeared while the others still had most of their allowance.
 - A process for taking upstream changes selectively. `npm run upstream:check` classifies
   unreviewed upstream commits, warns about branches cut from an older base, and lists the
   upstream's open pull requests, which mostly come from forks and never appear in
@@ -75,29 +83,35 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
   forwarded only for the Primary account, so a failure on any other subscription was
   silent.
 
-### Known issue
+### Continuing a chat when its subscription runs out
 
-- **Moving an existing chat to another subscription is held back.** New chats are still
-  routed away from a subscription that is out, which needs no move and works.
+A running chat now continues on a subscription with room, including one running a goal.
+It is behind `CODEX_MUX_THREAD_HANDOVER=1` while it is proven out.
 
-  A chat that is already running is a different matter. The move itself works: the
-  history is shared with the receiving subscription, and the chat resumes there. What
-  does not come with it is everything that subscription does not already know about the
-  chat. Its record lives in the original subscription's database, and its goal comes
-  back reported as cleared. A chat handed over was therefore opened on a subscription
-  that could not show it, which reads as a lost conversation - worse than the limit the
-  move was meant to work around. Nothing was actually lost: putting the chat back with
-  its original subscription restored both its history and its goal.
+**The turn moves; the chat does not.** A chat's turns are rebuilt into whichever
+subscription's own store, from a history that is read as the chat is used. On a long chat
+that rebuilding is nowhere near finished - one measured chat had reached 518 MB of its
+711 MB history - so a subscription just given the history still cannot show it. Handing
+the chat over left it opening empty. Because the history file itself is shared rather
+than copied, whatever the running subscription appends is visible to the one that owns
+the chat, and there is nothing to gain by moving ownership: reading stays where it works,
+and only the work moves.
 
-  What is in place and works: a usage limit reached while a turn is running is
-  recognised. `turn/start` is answered as soon as the turn is accepted, so that limit
-  never appears in the response; the app-server reports it afterwards through an `error`
-  notification, and only the response used to be inspected. Setting a goal is a turn
-  too, through its own request. Both are now recognised, and the turns a subscription
-  accepts are tracked so one can be replayed elsewhere.
+The pieces that make it work:
 
-  What is missing is handing over the chat's record, not the history. Set
-  `CODEX_MUX_THREAD_HANDOVER=1` to enable the move and help prove it out.
+- A usage limit reached while a turn is running is recognised. `turn/start` is answered
+  as soon as the turn is accepted, so the limit never appears in that response; the
+  app-server reports it afterwards through an `error` notification, and only the response
+  used to be inspected.
+- Setting a goal is a turn too, through its own request rather than `turn/start`, so it
+  was neither recognised nor eligible.
+- The history is shared with the receiving subscription rather than copied.
+- The goal is carried across, and the order matters: written before the resume it is a
+  local write and the resume reports the goal as carried over, written afterwards it
+  starts a turn of its own. A goal stopped because its subscription ran out is carried
+  across as running, since the reason it stopped does not apply where it is going.
+- The handover runs in the background. It used to hold the request until it finished,
+  which froze the interface for as long as it took.
 
 ### Removed
 
@@ -148,5 +162,6 @@ changes.
 - Loopback-only, token-authenticated diagnostic UI states.
 - Source-only CI, release draft automation, security documentation, and a smoke test.
 
-[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.2.0
 [0.1.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.1.0

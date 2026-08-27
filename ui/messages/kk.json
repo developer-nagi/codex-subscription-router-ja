@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Пайдалану қолжетімсіз",
   "codexMux.depleted": "Таусылды",
   "codexMux.percentRemaining": "{percent}% қалды",
-  "codexMux.allSubscriptionsDepleted": "Барлық қосылған жазылымдар таусылды"
+  "codexMux.allSubscriptionsDepleted": "Барлық қосылған жазылымдар таусылды",
+  "codexMux.threadSubscription": "Бұл чат {label} қолданады"
 }

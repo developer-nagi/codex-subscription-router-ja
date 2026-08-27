@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "ಬಳಕೆ ಲಭ್ಯವಿಲ್ಲ",
   "codexMux.depleted": "ಮುಗಿದಿದೆ",
   "codexMux.percentRemaining": "{percent}% ಉಳಿದಿದೆ",
-  "codexMux.allSubscriptionsDepleted": "ಸಂಪರ್ಕಿತ ಎಲ್ಲಾ ಚಂದಾದಾರಿಕೆಗಳು ಮುಗಿದಿವೆ"
+  "codexMux.allSubscriptionsDepleted": "ಸಂಪರ್ಕಿತ ಎಲ್ಲಾ ಚಂದಾದಾರಿಕೆಗಳು ಮುಗಿದಿವೆ",
+  "codexMux.threadSubscription": "ಈ ಚಾಟ್ {label} ಬಳಸುತ್ತಿದೆ"
 }

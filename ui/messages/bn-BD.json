@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "ব্যবহার উপলব্ধ নয়",
   "codexMux.depleted": "শেষ",
   "codexMux.percentRemaining": "{percent}% অবশিষ্ট",
-  "codexMux.allSubscriptionsDepleted": "সমস্ত সংযুক্ত সাবস্ক্রিপশন শেষ হয়ে গেছে"
+  "codexMux.allSubscriptionsDepleted": "সমস্ত সংযুক্ত সাবস্ক্রিপশন শেষ হয়ে গেছে",
+  "codexMux.threadSubscription": "এই চ্যাটটি {label} ব্যবহার করছে"
 }

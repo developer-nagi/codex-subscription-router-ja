@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Përdorimi nuk është i disponueshëm",
   "codexMux.depleted": "I shterur",
   "codexMux.percentRemaining": "{percent}% të mbetura",
-  "codexMux.allSubscriptionsDepleted": "Të gjitha abonimet e lidhura janë shteruar"
+  "codexMux.allSubscriptionsDepleted": "Të gjitha abonimet e lidhura janë shteruar",
+  "codexMux.threadSubscription": "Kjo bisedë përdor {label}"
 }

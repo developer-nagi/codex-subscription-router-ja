@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Användning är inte tillgänglig",
   "codexMux.depleted": "Slut",
   "codexMux.percentRemaining": "{percent} % kvar",
-  "codexMux.allSubscriptionsDepleted": "Alla anslutna prenumerationer är slut"
+  "codexMux.allSubscriptionsDepleted": "Alla anslutna prenumerationer är slut",
+  "codexMux.threadSubscription": "Den här chatten använder {label}"
 }

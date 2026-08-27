@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Kullanım bilgisi yok",
   "codexMux.depleted": "Tükendi",
   "codexMux.percentRemaining": "%{percent} kaldı",
-  "codexMux.allSubscriptionsDepleted": "Bağlı tüm abonelikler tükendi"
+  "codexMux.allSubscriptionsDepleted": "Bağlı tüm abonelikler tükendi",
+  "codexMux.threadSubscription": "Bu sohbet {label} kullanıyor"
 }

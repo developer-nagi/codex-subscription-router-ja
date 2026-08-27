@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Η χρήση δεν είναι διαθέσιμη",
   "codexMux.depleted": "Εξαντλήθηκε",
   "codexMux.percentRemaining": "Απομένει {percent}%",
-  "codexMux.allSubscriptionsDepleted": "Όλες οι συνδεδεμένες συνδρομές έχουν εξαντληθεί"
+  "codexMux.allSubscriptionsDepleted": "Όλες οι συνδεδεμένες συνδρομές έχουν εξαντληθεί",
+  "codexMux.threadSubscription": "Αυτή η συνομιλία χρησιμοποιεί το {label}"
 }

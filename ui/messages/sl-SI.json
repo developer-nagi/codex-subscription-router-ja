@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "Poraba ni na voljo",
   "codexMux.depleted": "Izčrpano",
   "codexMux.percentRemaining": "Preostalo {percent} %",
-  "codexMux.allSubscriptionsDepleted": "Vse povezane naročnine so izčrpane"
+  "codexMux.allSubscriptionsDepleted": "Vse povezane naročnine so izčrpane",
+  "codexMux.threadSubscription": "Ta klepet uporablja {label}"
 }

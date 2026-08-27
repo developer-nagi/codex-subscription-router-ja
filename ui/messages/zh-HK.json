@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "無法取得用量",
   "codexMux.depleted": "已用盡",
   "codexMux.percentRemaining": "剩餘 {percent}%",
-  "codexMux.allSubscriptionsDepleted": "所有已連線的訂閱均已用盡"
+  "codexMux.allSubscriptionsDepleted": "所有已連線的訂閱均已用盡",
+  "codexMux.threadSubscription": "此對話正在使用{label}"
 }

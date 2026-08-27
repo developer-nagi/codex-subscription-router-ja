@@ -45,5 +45,6 @@
   "codexMux.usageUnavailable": "ഉപയോഗം ലഭ്യമല്ല",
   "codexMux.depleted": "തീർന്നു",
   "codexMux.percentRemaining": "{percent}% ബാക്കി",
-  "codexMux.allSubscriptionsDepleted": "ബന്ധിപ്പിച്ച എല്ലാ സബ്‌സ്‌ക്രിപ്‌ഷനുകളും തീർന്നു"
+  "codexMux.allSubscriptionsDepleted": "ബന്ധിപ്പിച്ച എല്ലാ സബ്‌സ്‌ക്രിപ്‌ഷനുകളും തീർന്നു",
+  "codexMux.threadSubscription": "ഈ ചാറ്റ് {label} ഉപയോഗിക്കുന്നു"
 }
