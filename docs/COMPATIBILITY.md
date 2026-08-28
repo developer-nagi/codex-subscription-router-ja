@@ -115,8 +115,9 @@ and the connected count. A single connection keeps the native header.
 Plugin definitions and MCP configuration are shared across accounts, so plugins are
 usable from every subscription. Only the switching UI is missing.
 
-`ui/thread-subscription.js` is kept for a future re-derivation. The patcher does not
-inject it today.
+The macOS build names a chat's subscription in the thread summary. This build says it
+in the composer footer instead, beside the chat's own controls, which is where its
+settings already are.
 
 ## Relationship to the official plugin system
 

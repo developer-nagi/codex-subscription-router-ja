@@ -7,6 +7,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ### Removed
 
+- `ui/thread-subscription.js`. It was written for the macOS build and never injected here;
+  the composer footer names the chat's subscription instead.
 - Moving a running chat to another subscription, and everything built for it: sharing the
   history file, carrying the goal across, and routing a chat's work away from the
   subscription that owns it. It cannot be done on this build, and attempting it damages
