@@ -5,40 +5,6 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
-### Removed
-
-- `ui/thread-subscription.js`. It was written for the macOS build and never injected here;
-  the composer footer names the chat's subscription instead.
-- Moving a running chat to another subscription, and everything built for it: sharing the
-  history file, carrying the goal across, and routing a chat's work away from the
-  subscription that owns it. It cannot be done on this build, and attempting it damages
-  the chat.
-
-  The app-server finds a chat by its id inside its own Codex home, and a chat's turns are
-  rebuilt into that home's own store by a writer attached to the loaded session - reading
-  a chat never advances it. A subscription handed a chat therefore cannot show it until it
-  has read the whole history, while the subscription that had been reading it stops at
-  whatever it had read. The writer also demands the history's records be numbered without
-  a break, and stops permanently and silently when they are not.
-
-  Sharing one history file between two subscriptions corrupts the chat outright: each
-  app-server keeps its own record numbering, so two writing to one file interleave two
-  sequences into it. Measured on a real 804 MB chat, whose numbering breaks at 717 MB and
-  which neither subscription can now display in full.
-
-  Routing a NEW chat by quota needs no move and is unaffected.
-
-### Fixed
-
-- Text typed into a turn already under way reaches the turn. It is sent as a steer, and
-  requests were routed to whichever subscription owns the chat while only the turn itself
-  had moved, so a steer arrived at a subscription with no such turn running and the words
-  were lost. Anything about the turn - steering it, interrupting it, its goal - now
-  follows the subscription running it, while reading the chat stays with the subscription
-  that can show it.
-
-## [0.2.0] - 2026-08-27
-
 ### Changed
 
 - Replaced the target platform: macOS becomes **Windows 11 x64**. The official app is
@@ -99,54 +65,36 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ### Fixed
 
-- The merged chat list no longer reassigns chats at random. Every listing wrote down the
+- The merged chat list no longer decides who owns a chat. Every listing wrote down the
   answering subscription as each chat's owner, and the subscriptions answer
-  concurrently, so a chat readable from more than one of them changed hands on nothing
-  more than which reply arrived last. Ownership is now recorded only for a chat that has
-  none, and a chat readable from several subscriptions is listed once, as its owner.
-- The capacity check in front of a turn no longer holds the turn up. It waited up to a
-  minute for the subscription to answer, so a slow subscription froze the interface
-  before the request was even sent. It now has a short budget of its own and falls
-  through to the owner when it expires.
-- Resuming a chat elsewhere no longer reads its whole history. Only the thread's
-  identity and location are used, but every turn was read as well - on a long chat that
-  is hundreds of megabytes, read at the moment it is least affordable.
+  concurrently, so ownership rested on which reply happened to arrive last. It is now
+  recorded only for a chat that has none.
 - `error` notifications now reach the interface from every subscription. They were
   forwarded only for the Primary account, so a failure on any other subscription was
   silent.
 
-### Continuing a chat when its subscription runs out
-
-**Withdrawn after release - see Unreleased.** It damages the chat and cannot be done on
-this build. What 0.2.0 shipped, behind `CODEX_MUX_THREAD_HANDOVER=1`, was this:
-
-**The turn moves; the chat does not.** A chat's turns are rebuilt into whichever
-subscription's own store, from a history that is read as the chat is used. On a long chat
-that rebuilding is nowhere near finished - one measured chat had reached 518 MB of its
-711 MB history - so a subscription just given the history still cannot show it. Handing
-the chat over left it opening empty. Because the history file itself is shared rather
-than copied, whatever the running subscription appends is visible to the one that owns
-the chat, and there is nothing to gain by moving ownership: reading stays where it works,
-and only the work moves.
-
-The pieces that make it work:
-
-- A usage limit reached while a turn is running is recognised. `turn/start` is answered
-  as soon as the turn is accepted, so the limit never appears in that response; the
-  app-server reports it afterwards through an `error` notification, and only the response
-  used to be inspected.
-- Setting a goal is a turn too, through its own request rather than `turn/start`, so it
-  was neither recognised nor eligible.
-- The history is shared with the receiving subscription rather than copied.
-- The goal is carried across, and the order matters: written before the resume it is a
-  local write and the resume reports the goal as carried over, written afterwards it
-  starts a turn of its own. A goal stopped because its subscription ran out is carried
-  across as running, since the reason it stopped does not apply where it is going.
-- The handover runs in the background. It used to hold the request until it finished,
-  which froze the interface for as long as it took.
-
 ### Removed
 
+- `ui/thread-subscription.js`. It was written for the macOS build and never injected here;
+  the composer footer names the chat's subscription instead.
+- Moving a running chat to another subscription, and everything built for it: sharing the
+  history file, carrying the goal across, and routing a chat's work away from the
+  subscription that owns it. It cannot be done on this build, and attempting it damages
+  the chat.
+
+  The app-server finds a chat by its id inside its own Codex home, and a chat's turns are
+  rebuilt into that home's own store by a writer attached to the loaded session - reading
+  a chat never advances it. A subscription handed a chat therefore cannot show it until it
+  has read the whole history, while the subscription that had been reading it stops at
+  whatever it had read. The writer also demands the history's records be numbered without
+  a break, and stops permanently and silently when they are not.
+
+  Sharing one history file between two subscriptions corrupts the chat outright: each
+  app-server keeps its own record numbering, so two writing to one file interleave two
+  sequences into it. Measured on a real 804 MB chat, whose numbering breaks at 717 MB and
+  which neither subscription can now display in full.
+
+  Routing a NEW chat by quota needs no move and is unaffected.
 - Code signing, Apple team identifier rewriting, the independently signed Computer Use
   helper, and `ElectronAsarIntegrity` updates. The Windows build ships the Electron fuse
   `EnableEmbeddedAsarIntegrityValidation` disabled and needs none of it.
@@ -194,6 +142,5 @@ changes.
 - Loopback-only, token-authenticated diagnostic UI states.
 - Source-only CI, release draft automation, security documentation, and a smoke test.
 
-[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.2.0
+[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.1.0
