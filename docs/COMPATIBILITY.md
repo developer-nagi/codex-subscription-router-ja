@@ -4,7 +4,7 @@ The patcher is deliberately tied to a known ChatGPT desktop layout. It verifies 
 renderer and main-process anchor it rewrites and stops rather than applying a partial
 patch.
 
-## Release 0.1.0 (Windows)
+## Release 0.2.0 (Windows)
 
 | Component | Tested value |
 | --- | --- |

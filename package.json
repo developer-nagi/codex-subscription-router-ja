@@ -1,7 +1,7 @@
 {
   "name": "codex-subscription-router-patcher",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build tooling for the independent Codex Subscription Router Windows app patch",
   "license": "MIT",
   "repository": {

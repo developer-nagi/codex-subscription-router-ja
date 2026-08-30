@@ -5,6 +5,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-30
+
 ### Changed
 
 - Follow the official app to `26.825.6671.0`. The minifier renamed almost everything the
@@ -153,5 +155,6 @@ changes.
 - Loopback-only, token-authenticated diagnostic UI states.
 - Source-only CI, release draft automation, security documentation, and a smoke test.
 
-[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/developer-nagi/codex-subscription-router-win/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.2.0
 [0.1.0]: https://github.com/developer-nagi/codex-subscription-router-win/releases/tag/v0.1.0
