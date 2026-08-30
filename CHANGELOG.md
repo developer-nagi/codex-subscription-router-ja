@@ -7,6 +7,17 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ### Changed
 
+- Follow the official app to `26.825.6671.0`. The minifier renamed almost everything the
+  patch depends on: five of the six borrowed identifiers, and eleven of the fifteen
+  anchors. Each was re-derived and confirmed to occur exactly once in the asset it is
+  rewritten in.
+
+  One of them was a trap worth naming. The profile image resolver used to be `Ija`, and
+  a function called `Ija` still exists in the new build - it now builds a settings key
+  path. Keeping the old binding would have passed every check and quietly set every
+  avatar's image source to a nonsense string. Identifiers are now pinned to enough of
+  their declaration to tell them apart from a namesake.
+
 - Replaced the target platform: macOS becomes **Windows 11 x64**. The official app is
   detected automatically from the MSIX package `OpenAI.Codex`.
 - Replaced the installer, `install.sh` becoming `install.ps1`.

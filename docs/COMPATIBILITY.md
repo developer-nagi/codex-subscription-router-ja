@@ -10,8 +10,8 @@ patch.
 | --- | --- |
 | OS | Windows 11 x64 |
 | Official package | MSIX `OpenAI.Codex` |
-| Official version | `26.818.8289.0` |
-| `app.asar` SHA-256 | `e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313` |
+| Official version | `26.825.6671.0` |
+| `app.asar` SHA-256 | `86e791e0eb330a1507057d30e450878f7c958e56e04e718f101ba80549e9baf2` |
 | Electron fuse `EnableEmbeddedAsarIntegrityValidation` | Disabled, so repacking needs no hash update |
 | Spawned app-server | `resources\codex.exe -c features.code_mode_host=true app-server --analytics-default-enabled` |
 
@@ -50,12 +50,18 @@ cannot be confirmed.
 
 | Placeholder | Identifier | Role | Declaration probe |
 | --- | --- | --- | --- |
-| `__CODEX_MUX_JSX__` | `u7` | JSX runtime | `u7=J()` |
-| `__CODEX_MUX_REACT__` | `nql` | React (hooks) | `nql=r(s(),1)` |
-| `__CODEX_MUX_MENU_ITEM__` | `fI` | Menu row component | `function fI(` |
-| `__CODEX_MUX_MENU__` | `vI` | Menu namespace (`Separator`) | `vI={Trigger:` |
-| `__CODEX_MUX_IMAGE_URL__` | `Ija` | Profile image URL resolution | `function Ija(` |
-| `__CODEX_MUX_INTL__` | `pd` | `useIntl` for formatjs | `function pd()` |
+| `__CODEX_MUX_JSX__` | `c8` | JSX runtime | `c8=G()` |
+| `__CODEX_MUX_REACT__` | `lwc` | React (hooks) | `lwc=n(U(),1)` |
+| `__CODEX_MUX_MENU_ITEM__` | `VR` | Menu row component | `function VR(e){let t=(0,UR.c)(94)` |
+| `__CODEX_MUX_MENU__` | `qR` | Menu namespace (`Separator`) | `qR={Trigger:` |
+| `__CODEX_MUX_IMAGE_URL__` | `nzo` | Profile image URL resolution | `function nzo(e){return rzo(e).src}` |
+| `__CODEX_MUX_INTL__` | `Kc` | `useIntl` for formatjs | `function Kc(){var e=Zoe.useContext(Yoe)` |
+
+A probe has to identify the declaration, not merely the name. `26.825.6671.0` renamed the
+image resolver from `Ija` to `nzo` and gave the name `Ija` to an unrelated function that
+builds a settings key path: a probe of `function Ija(` would have matched it, passed, and
+left every avatar pointing at a nonsense URL. Prefer enough of the declaration to tell a
+namesake apart.
 
 Icons do not depend on official identifiers; the injected UI defines them as SVG.
 

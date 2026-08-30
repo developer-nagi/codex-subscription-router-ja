@@ -39,19 +39,21 @@ DEFAULT_STATE_ROOT = Path.home() / ".codex-mux"
 # Reviewed official builds. Both the version and the app.asar SHA-256 must match;
 # anything else fails closed.
 TESTED_SOURCE_BUILDS = {
-    "26.818.8289.0": "e2f04d6aa921d07981b42368df0a28a8bebe8cd21375d4a1f9286757b51c1313",
+    "26.825.6671.0": "86e791e0eb330a1507057d30e450878f7c958e56e04e718f101ba80549e9baf2",
 }
 
 # Minified identifiers from the official build that the injected UI references.
 # They change between builds, so every declaration is verified before substitution.
 RENDERER_BINDINGS = {
     # placeholder: (identifier, a fragment that uniquely marks its declaration)
-    "__CODEX_MUX_JSX__": ("u7", "u7=J()"),
-    "__CODEX_MUX_REACT__": ("nql", "nql=r(s(),1)"),
-    "__CODEX_MUX_MENU_ITEM__": ("fI", "function fI("),
-    "__CODEX_MUX_MENU__": ("vI", "vI={Trigger:"),
-    "__CODEX_MUX_IMAGE_URL__": ("Ija", "function Ija("),
-    "__CODEX_MUX_INTL__": ("pd", "function pd()"),
+    "__CODEX_MUX_JSX__": ("c8", "c8=G()"),
+    "__CODEX_MUX_REACT__": ("lwc", "lwc=n(U(),1)"),
+    "__CODEX_MUX_MENU_ITEM__": ("VR", "function VR(e){let t=(0,UR.c)(94)"),
+    "__CODEX_MUX_MENU__": ("qR", "qR={Trigger:"),
+    # The previous build's name now belongs to an unrelated function that would be
+    # accepted without complaint, so this one is pinned to its whole declaration.
+    "__CODEX_MUX_IMAGE_URL__": ("nzo", "function nzo(e){return rzo(e).src}"),
+    "__CODEX_MUX_INTL__": ("Kc", "function Kc(){var e=Zoe.useContext(Yoe)"),
 }
 
 # Message ids for the injected UI. They do not exist in the official locale bundles,
@@ -357,7 +359,7 @@ def patch_renderer(extracted: Path, token: str) -> None:
     component = bind_renderer_identifiers(component, bundle)
 
     component_anchor = (
-        "function XKl(e){let t=(0,tql.c)(253),{sidebarFooter:n,triggerButton:r}=e"
+        "function rwc(e){let t=(0,cwc.c)(235),{sidebarFooter:n,triggerButton:r}=e"
     )
     bundle = replace_once(
         bundle,
@@ -368,56 +370,56 @@ def patch_renderer(extracted: Path, token: str) -> None:
 
     bundle = replace_once(
         bundle,
-        "let e=await F_.safeGet(`/wham/profiles/me`)",
+        "let e=await Yx.safeGet(`/wham/profiles/me`)",
         "let e=await codexMuxProfileData("
         "globalThis.__codexMuxSelectedProfileAccountId??null)",
         "the native profile stats request",
     )
 
-    usage_modal_anchor = "function hsc(e){let t=(0,_sc.c)(28),{defaultResetCreditsOpen:n,"
+    usage_modal_anchor = "function Wwo(e){let t=(0,Kwo.c)(28),{defaultResetCreditsOpen:n,"
     bundle = replace_once(
         bundle,
         usage_modal_anchor,
-        "function hsc(e){CodexMuxUseResetAccountState();"
-        "let t=(0,_sc.c)(28),{defaultResetCreditsOpen:n,",
+        "function Wwo(e){CodexMuxUseResetAccountState();"
+        "let t=(0,Kwo.c)(28),{defaultResetCreditsOpen:n,",
         "the native usage modal",
     )
 
     reset_query_anchor = (
-        "function TCa(){let e=(0,kV.c)(1),t;return "
+        "function Edi(){let e=(0,GL.c)(1),t;return "
         "e[0]===Symbol.for(`react.memo_cache_sentinel`)?"
-        "(t={queryKey:[`rate-limit-reset-credits`],queryFn:ECa,"
-        "refetchInterval:Dp.ONE_MINUTE,staleTime:Dp.FIVE_SECONDS},e[0]=t):"
-        "t=e[0],It(t)}"
+        "(t={queryKey:[`rate-limit-reset-credits`],queryFn:Ddi,"
+        "refetchInterval:sx.ONE_MINUTE,staleTime:sx.FIVE_SECONDS},e[0]=t):"
+        "t=e[0],fx(t)}"
     )
     bundle = replace_once(
         bundle,
         reset_query_anchor,
-        "function TCa(){let e=window.__codexMuxResetAccountId;return It({"
+        "function Edi(){let e=window.__codexMuxResetAccountId;return fx({"
         "queryKey:[`rate-limit-reset-credits`,e??`primary`],"
-        "queryFn:e?()=>codexMuxRateLimitResets(e):ECa,"
-        "refetchInterval:Dp.ONE_MINUTE,staleTime:Dp.FIVE_SECONDS})}",
+        "queryFn:e?()=>codexMuxRateLimitResets(e):Ddi,"
+        "refetchInterval:sx.ONE_MINUTE,staleTime:sx.FIVE_SECONDS})}",
         "the native reset-credit query",
     )
 
     reset_mutation_anchor = (
-        "function DCa(){let e=(0,kV.c)(3),t=ct(),n=hb(),r;return "
-        "e[0]!==n||e[1]!==t?(r={mutationFn:OCa,onSuccess:(e,r)=>{"
+        "function Odi(){let e=(0,GL.c)(3),t=lx(),n=HE(),r;return "
+        "e[0]!==n||e[1]!==t?(r={mutationFn:kdi,onSuccess:(e,r)=>{"
         "let{creditId:i}=r,a=e.code;if(a===`reset`||a===`already_redeemed`){"
         "let n=e.code===`reset`?e.credit?.id??i:i;"
-        "t.setQueryData([`rate-limit-reset-credits`],e=>ZSa(e,a,n))}"
+        "t.setQueryData([`rate-limit-reset-credits`],e=>Qui(e,a,n))}"
         "Promise.all([n([`rate-limit-status`]),n([`rate-limit-reset-credits`])])}},"
-        "e[0]=n,e[1]=t,e[2]=r):r=e[2],Qt(r)}"
+        "e[0]=n,e[1]=t,e[2]=r):r=e[2],mx(r)}"
     )
     bundle = replace_once(
         bundle,
         reset_mutation_anchor,
-        "function DCa(){let e=ct(),t=hb(),n=window.__codexMuxResetAccountId,"
-        "r=[`rate-limit-reset-credits`,n??`primary`];return Qt({"
-        "mutationFn:n?i=>codexMuxConsumeRateLimitReset(n,i):OCa,"
+        "function Odi(){let e=lx(),t=HE(),n=window.__codexMuxResetAccountId,"
+        "r=[`rate-limit-reset-credits`,n??`primary`];return mx({"
+        "mutationFn:n?i=>codexMuxConsumeRateLimitReset(n,i):kdi,"
         "onSuccess:(n,i)=>{let{creditId:a}=i,o=n.code;"
         "if(o===`reset`||o===`already_redeemed`){let t=o===`reset`?"
-        "n.credit?.id??a:a;e.setQueryData(r,e=>ZSa(e,o,t))}"
+        "n.credit?.id??a:a;e.setQueryData(r,e=>Qui(e,o,t))}"
         "Promise.all([t([`rate-limit-status`]),t(r)])}})}",
         "the native reset-credit mutation",
     )
@@ -431,13 +433,13 @@ def patch_renderer(extracted: Path, token: str) -> None:
 
     bundle = replace_once(
         bundle,
-        "usageItems:Ct",
-        "usageItems:(0,e7.jsx)(CodexMuxAccountMenu,{})",
+        "usageItems:wt",
+        "usageItems:(0,c8.jsx)(CodexMuxAccountMenu,{})",
         "the native usage menu slot",
     )
 
     open_change_anchors = (
-        ("open:s,onOpenChange:l,contentWidth:`panel`,triggerButton:Dt", "onOpenChange:l", "l"),
+        ("open:s,onOpenChange:c,contentWidth:`panel`,triggerButton:Ot", "onOpenChange:c", "c"),
         ("open:u,onOpenChange:d,align:`start`,contentWidth:`panel`", "onOpenChange:d", "d"),
     )
     for anchor, original, variable in open_change_anchors:
@@ -455,13 +457,13 @@ def patch_renderer(extracted: Path, token: str) -> None:
     # chat's own controls. The permissions control is chosen as the neighbour because
     # its memoisation already tracks the conversation id, so the label cannot be left
     # showing a previous chat's subscription.
-    permissions_control = "(0,U4.jsx)(VWc,{conversationId:K,hostId:y,cwdOverride:b})"
+    permissions_control = "(0,y0.jsx)(Woo,{conversationId:te,hostId:b,cwdOverride:x})"
     bundle = replace_once(
         bundle,
         permissions_control,
-        "(0,U4.jsxs)(U4.Fragment,{children:["
+        "(0,y0.jsxs)(y0.Fragment,{children:["
         f"{permissions_control},"
-        "globalThis.CodexMuxThreadSubscription?.(K)??null]})",
+        "globalThis.CodexMuxThreadSubscription?.(te)??null]})",
         "the composer footer's subscription label",
     )
 
@@ -566,22 +568,22 @@ def patch_profile_page(assets: Path) -> None:
     replacements = (
         (
             'avatar:(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`label`,'
-            '{"aria-disabled":I.isPending,',
+            '{"aria-disabled":z.isPending,',
             "avatar:globalThis.CodexMuxProfileAvatarStack?.()??"
             '(0,$.jsxs)($.Fragment,{children:[(0,$.jsxs)(`label`,'
-            '{"aria-disabled":I.isPending,',
+            '{"aria-disabled":z.isPending,',
             "the Profile avatar",
         ),
         (
-            "displayName:et??(0,$.jsx)(J,{id:`profile.nameFallback`",
-            "displayName:globalThis.CodexMuxProfileDisplayName?.()??et??"
-            "(0,$.jsx)(J,{id:`profile.nameFallback`",
+            "displayName:ze??(0,$.jsx)(q,{id:`profile.nameFallback`",
+            "displayName:globalThis.CodexMuxProfileDisplayName?.()??ze??"
+            "(0,$.jsx)(q,{id:`profile.nameFallback`",
             "the Profile display name",
         ),
         (
-            "username:Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
+            "username:Le==null?null:(0,$.jsx)(q,{id:`profile.usernameValue`",
             "username:globalThis.CodexMuxProfileUsername?.()??"
-            "(Qe==null?null:(0,$.jsx)(J,{id:`profile.usernameValue`",
+            "(Le==null?null:(0,$.jsx)(q,{id:`profile.usernameValue`",
             "the Profile username",
         ),
     )
@@ -591,7 +593,7 @@ def patch_profile_page(assets: Path) -> None:
     # The username replacement wrapped a conditional, so close the extra parenthesis.
     username_tail = (
         "description:`Profile username shown with an at-sign prefix`,"
-        "values:{username:Qe}})"
+        "values:{username:Le}})"
     )
     bundle = replace_once(
         bundle,
